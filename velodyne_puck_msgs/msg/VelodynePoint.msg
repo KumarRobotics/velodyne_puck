@@ -1,0 +1,9 @@
+float32 time
+float32 x
+float32 y
+float32 z
+float32 azimuth
+float32 altitude
+float32 distance
+float32 intensity
+uint16  ring
