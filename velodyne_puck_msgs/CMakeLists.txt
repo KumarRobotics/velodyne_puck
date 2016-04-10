@@ -9,11 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
-  VelodynePacket.msg
-  VelodyneScan.msg
-  VelodynePoint.msg
-  VelodynePointScan.msg
-  VelodynePointCloudByScan.msg
+  VelodynePuckPacket.msg
+  VelodynePuckPoint.msg
+  VelodynePuckScan.msg
+  VelodynePuckSweep.msg
 )
 generate_messages(DEPENDENCIES std_msgs)
 

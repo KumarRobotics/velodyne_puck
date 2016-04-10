@@ -26,7 +26,7 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 
-#include <velodyne_puck_msgs/VelodynePacket.h>
+#include <velodyne_puck_msgs/VelodynePuckPacket.h>
 
 namespace velodyne_puck_driver {
 
@@ -50,7 +50,7 @@ private:
   bool loadParameters();
   bool createRosIO();
   bool openUDPPort();
-  int getPacket(velodyne_puck_msgs::VelodynePacketPtr& msg);
+  int getPacket(velodyne_puck_msgs::VelodynePuckPacketPtr& msg);
 
   // Ethernet relate variables
   std::string device_ip_string;

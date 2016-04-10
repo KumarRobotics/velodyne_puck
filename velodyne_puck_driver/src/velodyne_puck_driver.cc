@@ -71,7 +71,7 @@ bool VelodynePuckDriver::createRosIO() {
         TimeStampStatusParam()));
 
   // Output
-  packet_pub = nh.advertise<velodyne_puck_msgs::VelodynePacket>(
+  packet_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckPacket>(
       "velodyne_packet", 10);
 
   return true;
@@ -123,7 +123,7 @@ bool VelodynePuckDriver::initialize() {
 }
 
 int VelodynePuckDriver::getPacket(
-    velodyne_puck_msgs::VelodynePacketPtr& packet) {
+    velodyne_puck_msgs::VelodynePuckPacketPtr& packet) {
 
   double time1 = ros::Time::now().toSec();
 
@@ -217,8 +217,8 @@ int VelodynePuckDriver::getPacket(
 bool VelodynePuckDriver::polling()
 {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
-  velodyne_puck_msgs::VelodynePacketPtr packet(
-      new velodyne_puck_msgs::VelodynePacket());
+  velodyne_puck_msgs::VelodynePuckPacketPtr packet(
+      new velodyne_puck_msgs::VelodynePuckPacket());
 
   // Since the velodyne delivers data at a very high rate, keep
   // reading and publishing scans as fast as possible.
