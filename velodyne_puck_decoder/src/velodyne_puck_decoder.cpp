@@ -40,7 +40,7 @@ bool VelodynePuckDecoder::loadParameters() {
 
 bool VelodynePuckDecoder::createRosIO() {
   packet_sub = nh.subscribe<velodyne_puck_msgs::VelodynePuckPacket>(
-      "velodyne_packets", 100, &VelodynePuckDecoder::packetCallback, this);
+      "velodyne_packet", 100, &VelodynePuckDecoder::packetCallback, this);
   sweep_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckSweep>(
       "velodyne_sweep", 10);
   point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>(
@@ -109,9 +109,10 @@ void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
       firings[lfir_idx].firing_azimuth;
     azimuth_diff = azimuth_diff < 0 ? azimuth_diff + 2*M_PI : azimuth_diff;
 
-    firings[fir_idx].firing_azimuth = firings[fir_idx-1].firing_azimuth +
-      azimuth_diff/2.0;
-    firings[fir_idx].firing_azimuth  = firings[fir_idx].firing_azimuth > 2*M_PI ?
+    firings[fir_idx].firing_azimuth =
+      firings[fir_idx-1].firing_azimuth + azimuth_diff/2.0;
+    firings[fir_idx].firing_azimuth  =
+      firings[fir_idx].firing_azimuth > 2*M_PI ?
       firings[fir_idx].firing_azimuth-2*M_PI : firings[fir_idx].firing_azimuth;
   }
 
@@ -187,6 +188,7 @@ void VelodynePuckDecoder::packetCallback(
     return;
   } else {
     if (is_first_sweep) {
+      ROS_INFO("Start publishing sweep data...");
       is_first_sweep = false;
       start_fir_idx = new_sweep_start;
       end_fir_idx = FIRINGS_PER_PACKET;

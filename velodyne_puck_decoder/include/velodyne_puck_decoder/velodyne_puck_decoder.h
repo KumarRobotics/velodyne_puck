@@ -112,6 +112,8 @@ public:
   VelodynePuckDecoder operator=(const VelodynePuckDecoder&) = delete;
   ~VelodynePuckDecoder() {return;}
 
+  bool initialize();
+
   typedef boost::shared_ptr<VelodynePuckDecoder> VelodynePuckDecoderPtr;
   typedef boost::shared_ptr<const VelodynePuckDecoder> VelodynePuckDecoderConstPtr;
 
@@ -145,7 +147,7 @@ private:
   // Intialization sequence
   bool loadParameters();
   bool createRosIO();
-  bool initialize();
+
 
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const RawPacket* packet);
