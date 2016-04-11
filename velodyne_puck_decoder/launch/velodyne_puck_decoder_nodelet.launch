@@ -1,0 +1,13 @@
+<launch>
+
+  <include file="$(find velodyne_puck_driver)/launch/velodyne_puck_driver_nodelet.launch"/>
+
+  <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet"
+    args="load velodyne_puck_decoder/VelodynePuckDecoderNodelet
+    velodyne_puck_nodelet_manager"
+    output="screen">
+    <param name="min_range" value="0.5"/>
+    <param name="max_range" value="100.0"/>
+  </node>
+
+</launch>
