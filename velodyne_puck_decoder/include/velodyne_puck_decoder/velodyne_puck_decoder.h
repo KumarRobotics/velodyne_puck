@@ -132,8 +132,10 @@ private:
 
   struct RawPacket {
     RawBlock blocks[BLOCKS_PER_PACKET];
-    uint16_t revolution;
-    uint8_t status[PACKET_STATUS_SIZE];
+    uint32_t time_stamp;
+    uint8_t factory[2];
+    //uint16_t revolution;
+    //uint8_t status[PACKET_STATUS_SIZE];
   };
 
   struct Firing {
