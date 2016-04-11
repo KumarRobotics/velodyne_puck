@@ -16,7 +16,7 @@
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "velodyne_node");
+  ros::init(argc, argv, "velodyne_puck_driver_node");
   ros::NodeHandle node;
   ros::NodeHandle private_nh("~");
 

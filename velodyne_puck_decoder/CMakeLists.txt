@@ -57,3 +57,17 @@ add_dependencies(velodyne_puck_decoder_nodelet
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
+
+# Velodyne Puck Decoder node
+add_executable(velodyne_puck_decoder_node
+  src/velodyne_puck_decoder_node.cpp
+)
+target_link_libraries(velodyne_puck_decoder_node
+  velodyne_puck_decoder
+  #profiler
+  ${catkin_LIBRARIES}
+)
+add_dependencies(velodyne_puck_decoder_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)

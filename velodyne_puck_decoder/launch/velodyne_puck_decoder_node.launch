@@ -1,0 +1,13 @@
+<launch>
+
+  <include file="$(find velodyne_puck_driver)/launch/velodyne_puck_driver_nodelet.launch"/>
+
+  <node pkg="velodyne_puck_decoder" type="velodyne_puck_decoder_node"
+    name="velodyne_puck_decoder_node"
+    output="screen">
+    <env name="CPUPROFILE" value="/home/ke/Desktop/velodyne_decoder.prof"/>
+    <param name="min_range" value="0.5"/>
+    <param name="max_range" value="100.0"/>
+  </node>
+
+</launch>
