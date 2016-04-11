@@ -27,7 +27,8 @@ VelodynePuckDecoder::VelodynePuckDecoder(
   is_first_sweep(true),
   last_azimuth(0.0),
   sweep_start_time(0.0),
-  packet_start_time(0.0){
+  packet_start_time(0.0),
+  sweep_data(new velodyne_puck_msgs::VelodynePuckSweep()){
   return;
 }
 
@@ -62,7 +63,7 @@ bool VelodynePuckDecoder::initialize() {
   // Fill in the altitude for each scan.
   for (size_t scan_idx = 0; scan_idx < 16; ++scan_idx) {
     size_t remapped_scan_idx = scan_idx%2 == 0 ? scan_idx/2 : scan_idx/2+8;
-    sweep_data.scans[remapped_scan_idx].altitude = scan_altitude[scan_idx];
+    sweep_data->scans[remapped_scan_idx].altitude = scan_altitude[scan_idx];
   }
 
   return true;
@@ -81,7 +82,7 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
 
 void VelodynePuckDecoder::clearSweepData() {
   for (size_t i = 0; i < 16; ++i) {
-    sweep_data.scans[i].points.clear();
+    sweep_data->scans[i].points.clear();
   }
   return;
 }
@@ -218,11 +219,11 @@ void VelodynePuckDecoder::packetCallback(
 
       // Remap the index of the scan
       int remapped_scan_idx = scan_idx%2 == 0 ? scan_idx/2 : scan_idx/2+8;
-      sweep_data.scans[remapped_scan_idx].points.push_back(
+      sweep_data->scans[remapped_scan_idx].points.push_back(
           velodyne_puck_msgs::VelodynePuckPoint());
       velodyne_puck_msgs::VelodynePuckPoint& new_point =
-        sweep_data.scans[remapped_scan_idx].points[
-        sweep_data.scans[remapped_scan_idx].points.size()-1];
+        sweep_data->scans[remapped_scan_idx].points[
+        sweep_data->scans[remapped_scan_idx].points.size()-1];
 
       // Pack the data into point msg
       new_point.time = time;
@@ -235,7 +236,7 @@ void VelodynePuckDecoder::packetCallback(
     }
   }
 
-  packet_start_time += BLOCK_TDURATION * (end_fir_idx-start_fir_idx);
+  packet_start_time += FIRING_TOFFSET * (end_fir_idx-start_fir_idx);
 
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
@@ -273,11 +274,11 @@ void VelodynePuckDecoder::packetCallback(
 
         // Remap the index of the scan
         int remapped_scan_idx = scan_idx%2 == 0 ? scan_idx/2 : scan_idx/2+8;
-        sweep_data.scans[remapped_scan_idx].points.push_back(
+        sweep_data->scans[remapped_scan_idx].points.push_back(
             velodyne_puck_msgs::VelodynePuckPoint());
         velodyne_puck_msgs::VelodynePuckPoint& new_point =
-          sweep_data.scans[remapped_scan_idx].points[
-          sweep_data.scans[remapped_scan_idx].points.size()-1];
+          sweep_data->scans[remapped_scan_idx].points[
+          sweep_data->scans[remapped_scan_idx].points.size()-1];
 
         // Pack the data into point msg
         new_point.time = time;
@@ -290,7 +291,7 @@ void VelodynePuckDecoder::packetCallback(
       }
     }
 
-    packet_start_time += BLOCK_TDURATION * (end_fir_idx-start_fir_idx);
+    packet_start_time += FIRING_TOFFSET * (end_fir_idx-start_fir_idx);
   }
 
   return;

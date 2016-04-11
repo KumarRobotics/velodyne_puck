@@ -180,7 +180,7 @@ private:
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
 
-  velodyne_puck_msgs::VelodynePuckSweep sweep_data;
+  velodyne_puck_msgs::VelodynePuckSweepPtr sweep_data;
   sensor_msgs::PointCloud2 point_cloud_data;
 
   ros::Subscriber packet_sub;
