@@ -19,6 +19,7 @@
 
   <run_depend>velodyne_puck_driver</run_depend>
   <run_depend>velodyne_puck_msgs</run_depend>
+  <run_depend>velodyne_puck_decoder</run_depend>
 
   <export>
     <metapackage/>
