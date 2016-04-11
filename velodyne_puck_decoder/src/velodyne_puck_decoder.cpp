@@ -23,6 +23,7 @@ namespace velodyne_puck_decoder {
 VelodynePuckDecoder::VelodynePuckDecoder(
     ros::NodeHandle& n, ros::NodeHandle& pn):
   nh(n),
+  pnh(pn),
   is_first_sweep(true),
   last_azimuth(0.0),
   sweep_start_time(0.0),
@@ -31,8 +32,9 @@ VelodynePuckDecoder::VelodynePuckDecoder(
 }
 
 bool VelodynePuckDecoder::loadParameters() {
-  nh.param<double>("min_range", min_range, 0.5);
-  nh.param<double>("max_range", max_range, 100.0);
+  pnh.param<double>("min_range", min_range, 0.5);
+  pnh.param<double>("max_range", max_range, 100.0);
+  pnh.param<double>("frequency", max_range, 20.0);
   return true;
 }
 

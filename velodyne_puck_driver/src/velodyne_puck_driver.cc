@@ -44,8 +44,8 @@ VelodynePuckDriver::~VelodynePuckDriver() {
 
 bool VelodynePuckDriver::loadParameters() {
 
-  nh.param("frame_id", frame_id, std::string("velodyne"));
-  nh.param("device_ip", device_ip_string, std::string("192.168.10.201"));
+  pnh.param("frame_id", frame_id, std::string("velodyne"));
+  pnh.param("device_ip", device_ip_string, std::string("192.168.1.201"));
   inet_aton(device_ip_string.c_str(), &device_ip);
 
   return true;
