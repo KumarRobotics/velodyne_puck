@@ -241,10 +241,12 @@ void VelodynePuckDecoder::packetCallback(
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the last revolution
+    sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
     clearSweepData();
 
     // Prepare the next revolution
+    sweep_start_time = msg->stamp.toSec() + FIRING_TOFFSET*end_fir_idx;
     packet_start_time = 0.0;
     last_azimuth = firings[FIRINGS_PER_PACKET-1].firing_azimuth;
 
@@ -270,7 +272,7 @@ void VelodynePuckDecoder::packetCallback(
 
         // Compute the time of the point
         double time = packet_start_time +
-          FIRING_TOFFSET*fir_idx + DSR_TOFFSET*scan_idx;
+          FIRING_TOFFSET*(fir_idx-start_fir_idx) + DSR_TOFFSET*scan_idx;
 
         // Remap the index of the scan
         int remapped_scan_idx = scan_idx%2 == 0 ? scan_idx/2 : scan_idx/2+8;
