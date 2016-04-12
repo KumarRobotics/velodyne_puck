@@ -172,8 +172,8 @@ private:
   double min_range;
   double max_range;
 
-  double cos_azimuth_table[63000];
-  double sin_azimuth_table[63000];
+  double cos_azimuth_table[6300];
+  double sin_azimuth_table[6300];
 
   bool is_first_sweep;
   double last_azimuth;

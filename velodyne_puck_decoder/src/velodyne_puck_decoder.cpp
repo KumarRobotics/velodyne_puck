@@ -67,7 +67,7 @@ bool VelodynePuckDecoder::initialize() {
   }
 
   // Create the sin and cos table for different azimuth values.
-  for (size_t i = 0; i < 63000; ++i) {
+  for (size_t i = 0; i < 6300; ++i) {
     double angle = static_cast<double>(i) / 1000.0;
     cos_azimuth_table[i] = cos(angle);
     sin_azimuth_table[i] = sin(angle);
@@ -195,7 +195,6 @@ void VelodynePuckDecoder::packetCallback(
     return;
   } else {
     if (is_first_sweep) {
-      ROS_INFO("Start publishing sweep data...");
       is_first_sweep = false;
       start_fir_idx = new_sweep_start;
       end_fir_idx = FIRINGS_PER_PACKET;
@@ -209,8 +208,16 @@ void VelodynePuckDecoder::packetCallback(
 
       // Convert the point to xyz coordinate
       size_t table_idx = floor(firings[fir_idx].azimuth[scan_idx]*1000.0+0.5);
+      //cout << table_idx << endl;
       double cos_azimuth = cos_azimuth_table[table_idx];
       double sin_azimuth = sin_azimuth_table[table_idx];
+
+      //double x = firings[fir_idx].distance[scan_idx] *
+      //  cos_scan_altitude[scan_idx] * sin(firings[fir_idx].azimuth[scan_idx]);
+      //double y = firings[fir_idx].distance[scan_idx] *
+      //  cos_scan_altitude[scan_idx] * cos(firings[fir_idx].azimuth[scan_idx]);
+      //double z = firings[fir_idx].distance[scan_idx] *
+      //  sin_scan_altitude[scan_idx];
 
       double x = firings[fir_idx].distance[scan_idx] *
         cos_scan_altitude[scan_idx] * sin_azimuth;
@@ -270,8 +277,16 @@ void VelodynePuckDecoder::packetCallback(
 
         // Convert the point to xyz coordinate
         size_t table_idx = floor(firings[fir_idx].azimuth[scan_idx]*1000.0+0.5);
+        //cout << table_idx << endl;
         double cos_azimuth = cos_azimuth_table[table_idx];
         double sin_azimuth = sin_azimuth_table[table_idx];
+
+        //double x = firings[fir_idx].distance[scan_idx] *
+        //  cos_scan_altitude[scan_idx] * sin(firings[fir_idx].azimuth[scan_idx]);
+        //double y = firings[fir_idx].distance[scan_idx] *
+        //  cos_scan_altitude[scan_idx] * cos(firings[fir_idx].azimuth[scan_idx]);
+        //double z = firings[fir_idx].distance[scan_idx] *
+        //  sin_scan_altitude[scan_idx];
 
         double x = firings[fir_idx].distance[scan_idx] *
           cos_scan_altitude[scan_idx] * sin_azimuth;

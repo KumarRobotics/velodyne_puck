@@ -1,15 +1,18 @@
 /*
- *  Copyright (C) 2007 Austin Robot Technology, Patrick Beeson
- *  Copyright (C) 2009-2012 Austin Robot Technology, Jack O'Quin
+ * This file is part of velodyne_puck driver.
  *
- *  License: Modified BSD Software License Agreement
+ * The driver is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *  $Id$
- */
-
-/** \file
+ * The driver is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  ROS driver implementation for the Velodyne 3D LIDARs
+ * You should have received a copy of the GNU General Public License
+ * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string>
