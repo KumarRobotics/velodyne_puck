@@ -64,7 +64,7 @@ add_executable(velodyne_puck_decoder_node
 )
 target_link_libraries(velodyne_puck_decoder_node
   velodyne_puck_decoder
-  #profiler
+  profiler
   ${catkin_LIBRARIES}
 )
 add_dependencies(velodyne_puck_decoder_node

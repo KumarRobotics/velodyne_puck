@@ -16,7 +16,7 @@
  */
 
 #include <ros/ros.h>
-//#include <google/profiler.h>
+#include <google/profiler.h>
 #include <velodyne_puck_decoder/velodyne_puck_decoder.h>
 
 int main(int argc, char** argv) {
@@ -32,9 +32,9 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  //ProfilerStart("velodyne_decoder.prof");
+  ProfilerStart("velodyne_decoder.prof");
   ros::spin();
-  //ProfilerStop();
+  ProfilerStop();
 
   return 0;
 }
