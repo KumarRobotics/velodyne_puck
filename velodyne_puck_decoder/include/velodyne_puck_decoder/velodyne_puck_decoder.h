@@ -29,6 +29,10 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+
 #include <velodyne_puck_msgs/VelodynePuckPacket.h>
 #include <velodyne_puck_msgs/VelodynePuckPoint.h>
 #include <velodyne_puck_msgs/VelodynePuckScan.h>
@@ -156,6 +160,9 @@ private:
   void clearSweepData();
   void decodePacket(const RawPacket* packet);
   void packetCallback(const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg);
+
+  // Publish data
+  void publish();
 
   // Check if a point is in the required range.
   bool isPointInRange(const double& distance) {

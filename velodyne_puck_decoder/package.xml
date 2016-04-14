@@ -1,4 +1,5 @@
-<package>
+<?xml version="1.0"?>
+<package format="2">
 
   <name>velodyne_puck_decoder</name>
   <version>1.2.0</version>
@@ -14,17 +15,17 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>nodelet</build_depend>
-  <build_depend>pluginlib</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>velodyne_puck_msgs</build_depend>
+  <depend>nodelet</depend>
+  <depend>pluginlib</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
 
-  <run_depend>nodelet</run_depend>
-  <run_depend>pluginlib</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>velodyne_puck_msgs</run_depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
+  <depend>libpcl-all-dev</depend>
+  <depend>libpcl-all</depend>
+
+  <depend>velodyne_puck_msgs</depend>
 
   <export>
     <nodelet plugin="${prefix}/nodelet_velodyne_puck_decoder.xml"/>

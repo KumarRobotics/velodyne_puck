@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   pluginlib
   sensor_msgs
+  pcl_ros
+  pcl_conversions
   velodyne_puck_msgs
 )
 find_package(Boost REQUIRED)
@@ -18,6 +20,7 @@ catkin_package(
 #  LIBRARIES velodyne_puck_decoder
   CATKIN_DEPENDS
     roscpp nodelet sensor_msgs pluginlib
+    pcl_ros pcl_conversions
     velodyne_puck_msgs
   DEPENDS
     boost

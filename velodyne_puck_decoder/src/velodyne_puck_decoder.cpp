@@ -94,6 +94,32 @@ void VelodynePuckDecoder::clearSweepData() {
   return;
 }
 
+void VelodynePuckDecoder::publish() {
+  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>());
+  point_cloud->header.stamp =
+    pcl_conversions::toPCL(sweep_data->header).stamp;
+  point_cloud->height = 1;
+
+  for (size_t i = 0; i < 16; ++i) {
+    const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
+    for (size_t j = 0; j < scan.points.size(); ++j) {
+      pcl::PointXYZI point;
+      point.x = scan.points[j].x;
+      point.y = scan.points[j].y;
+      point.z = scan.points[j].z;
+      point.intensity = scan.points[j].intensity;
+      point_cloud->points.push_back(point);
+      ++point_cloud->width;
+    }
+  }
+
+  point_cloud_pub.publish(point_cloud);
+  sweep_pub.publish(sweep_data);
+
+  return;
+}
+
 void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
 
   // Compute the azimuth angle for each firing.
@@ -259,7 +285,8 @@ void VelodynePuckDecoder::packetCallback(
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the last revolution
     sweep_data->header.stamp = ros::Time(sweep_start_time);
-    sweep_pub.publish(sweep_data);
+    //sweep_pub.publish(sweep_data);
+    publish();
     clearSweepData();
 
     // Prepare the next revolution
