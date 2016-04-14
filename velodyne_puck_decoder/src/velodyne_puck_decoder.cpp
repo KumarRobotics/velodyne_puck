@@ -99,6 +99,7 @@ void VelodynePuckDecoder::publish() {
       new pcl::PointCloud<pcl::PointXYZI>());
   point_cloud->header.stamp =
     pcl_conversions::toPCL(sweep_data->header).stamp;
+  point_cloud->header.frame_id = "velodyne";
   point_cloud->height = 1;
 
   for (size_t i = 0; i < 16; ++i) {
