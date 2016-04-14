@@ -8,6 +8,8 @@
     output="screen">
     <param name="min_range" value="0.5"/>
     <param name="max_range" value="100.0"/>
+    <param name="frequency" value="20.0"/>
+    <param name="publish_point_cloud" value="true"/>
   </node>
 
 </launch>
