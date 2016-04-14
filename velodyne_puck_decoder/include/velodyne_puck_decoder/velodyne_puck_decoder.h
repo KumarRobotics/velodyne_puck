@@ -162,7 +162,7 @@ private:
   void packetCallback(const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg);
 
   // Publish data
-  void publish();
+  void publishPointCloud();
 
   // Check if a point is in the required range.
   bool isPointInRange(const double& distance) {
@@ -178,6 +178,7 @@ private:
   // Configuration parameters
   double min_range;
   double max_range;
+  bool publish_point_cloud;
 
   double cos_azimuth_table[6300];
   double sin_azimuth_table[6300];

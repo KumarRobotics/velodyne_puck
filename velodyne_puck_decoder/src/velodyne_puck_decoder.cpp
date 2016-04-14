@@ -24,6 +24,7 @@ VelodynePuckDecoder::VelodynePuckDecoder(
     ros::NodeHandle& n, ros::NodeHandle& pn):
   nh(n),
   pnh(pn),
+  publish_point_cloud(true),
   is_first_sweep(true),
   last_azimuth(0.0),
   sweep_start_time(0.0),
@@ -36,6 +37,7 @@ bool VelodynePuckDecoder::loadParameters() {
   pnh.param<double>("min_range", min_range, 0.5);
   pnh.param<double>("max_range", max_range, 100.0);
   pnh.param<double>("frequency", max_range, 20.0);
+  pnh.param<bool>("publish_point_cloud", publish_point_cloud, true);
   return true;
 }
 
@@ -94,7 +96,7 @@ void VelodynePuckDecoder::clearSweepData() {
   return;
 }
 
-void VelodynePuckDecoder::publish() {
+void VelodynePuckDecoder::publishPointCloud() {
   pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
       new pcl::PointCloud<pcl::PointXYZI>());
   point_cloud->header.stamp =
@@ -116,7 +118,7 @@ void VelodynePuckDecoder::publish() {
   }
 
   point_cloud_pub.publish(point_cloud);
-  sweep_pub.publish(sweep_data);
+  //sweep_pub.publish(sweep_data);
 
   return;
 }
@@ -286,8 +288,8 @@ void VelodynePuckDecoder::packetCallback(
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the last revolution
     sweep_data->header.stamp = ros::Time(sweep_start_time);
-    //sweep_pub.publish(sweep_data);
-    publish();
+    sweep_pub.publish(sweep_data);
+    if (publish_point_cloud) publishPointCloud();
     clearSweepData();
 
     // Prepare the next revolution
