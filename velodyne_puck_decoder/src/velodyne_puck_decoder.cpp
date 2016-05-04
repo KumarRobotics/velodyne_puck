@@ -204,7 +204,9 @@ void VelodynePuckDecoder::packetCallback(
   // Decode the packet
   decodePacket(raw_packet);
 
-  // Convert the packets
+  // Find the start of a new revolution
+  //    If there is one, new_sweep_start will be the index of the start firing,
+  //    otherwise, new_sweep_start will be FIRINGS_PER_PACKET.
   size_t new_sweep_start = 0;
   do {
     if (firings[new_sweep_start].firing_azimuth < last_azimuth) break;
@@ -214,19 +216,22 @@ void VelodynePuckDecoder::packetCallback(
     }
   } while (new_sweep_start < FIRINGS_PER_PACKET);
 
-  // The first sweep may not be complete. We will
-  // wait for the second sweep in order to find the
-  // 0 azimuth angle.
+  // The first sweep may not be complete. So, the firings with
+  // the first sweep will be discarded. We will wait for the
+  // second sweep in order to find the 0 azimuth angle.
   size_t start_fir_idx = 0;
   size_t end_fir_idx = new_sweep_start;
   if (is_first_sweep &&
       new_sweep_start == FIRINGS_PER_PACKET) {
+    // The first sweep has not ended yet.
     return;
   } else {
     if (is_first_sweep) {
       is_first_sweep = false;
       start_fir_idx = new_sweep_start;
       end_fir_idx = FIRINGS_PER_PACKET;
+      sweep_start_time = msg->stamp.toSec() +
+        FIRING_TOFFSET * (end_fir_idx-start_fir_idx) * 1e-6;
     }
   }
 
@@ -293,7 +298,8 @@ void VelodynePuckDecoder::packetCallback(
     clearSweepData();
 
     // Prepare the next revolution
-    sweep_start_time = msg->stamp.toSec() + FIRING_TOFFSET*end_fir_idx;
+    sweep_start_time = msg->stamp.toSec() +
+      FIRING_TOFFSET * (end_fir_idx-start_fir_idx) * 1e-6;
     packet_start_time = 0.0;
     last_azimuth = firings[FIRINGS_PER_PACKET-1].firing_azimuth;
 
