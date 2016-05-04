@@ -79,4 +79,4 @@ Note that this launch file launches both the driver and the decoder, which is th
 
 ## Bug Report
 
-Perfer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
+Prefer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
