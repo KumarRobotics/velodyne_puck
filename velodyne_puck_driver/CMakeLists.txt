@@ -60,14 +60,14 @@ add_dependencies(velodyne_puck_driver_nodelet
 )
 
 # Velodyne Puck node
-add_executable(velodyne_puck_driver_node
-  src/velodyne_puck_driver_node.cc
-)
-target_link_libraries(velodyne_puck_driver_node
-  velodyne_puck_driver
-  ${catkin_LIBRARIES}
-)
-add_dependencies(velodyne_puck_driver_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(velodyne_puck_driver_node
+#  src/velodyne_puck_driver_node.cc
+#)
+#target_link_libraries(velodyne_puck_driver_node
+#  velodyne_puck_driver
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(velodyne_puck_driver_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
