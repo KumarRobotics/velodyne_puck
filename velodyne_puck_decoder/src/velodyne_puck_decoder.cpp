@@ -36,7 +36,7 @@ VelodynePuckDecoder::VelodynePuckDecoder(
 bool VelodynePuckDecoder::loadParameters() {
   pnh.param<double>("min_range", min_range, 0.5);
   pnh.param<double>("max_range", max_range, 100.0);
-  pnh.param<double>("frequency", max_range, 20.0);
+  pnh.param<double>("frequency", frequency, 20.0);
   pnh.param<bool>("publish_point_cloud", publish_point_cloud, true);
   return true;
 }
