@@ -178,6 +178,7 @@ private:
   // Configuration parameters
   double min_range;
   double max_range;
+  double frequency;
   bool publish_point_cloud;
 
   double cos_azimuth_table[6300];
