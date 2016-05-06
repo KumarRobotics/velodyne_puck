@@ -1,5 +1,7 @@
 # velodyne\_puck
 
+[![Build Status](https://travis-ci.org/ke-sun/velodyne_puck.svg?branch=master)](https://travis-ci.org/ke-sun/velodyne_puck)
+
 ![Picture of Velodyne Puck](http://velodynelidar.com/images/products/vlp-16/puck.png)
 
 The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/). The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the LTE version [here](http://velodynelidar.com/vlp-16-lite.html).
