@@ -157,7 +157,6 @@ private:
 
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const RawPacket* packet);
-  void clearSweepData();
   void decodePacket(const RawPacket* packet);
   void packetCallback(const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg);
 

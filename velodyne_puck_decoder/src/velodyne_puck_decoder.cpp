@@ -28,8 +28,7 @@ VelodynePuckDecoder::VelodynePuckDecoder(
   is_first_sweep(true),
   last_azimuth(0.0),
   sweep_start_time(0.0),
-  packet_start_time(0.0),
-  sweep_data(new velodyne_puck_msgs::VelodynePuckSweep()){
+  packet_start_time(0.0) {
   return;
 }
 
@@ -87,13 +86,6 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
     }
   }
   return true;
-}
-
-void VelodynePuckDecoder::clearSweepData() {
-  for (size_t i = 0; i < 16; ++i) {
-    sweep_data->scans[i].points.clear();
-  }
-  return;
 }
 
 void VelodynePuckDecoder::publishPointCloud() {
@@ -292,10 +284,11 @@ void VelodynePuckDecoder::packetCallback(
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the last revolution
+    sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
+        new velodyne_puck_msgs::VelodynePuckSweep());
     sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
     if (publish_point_cloud) publishPointCloud();
-    clearSweepData();
 
     // Prepare the next revolution
     sweep_start_time = msg->stamp.toSec() +
