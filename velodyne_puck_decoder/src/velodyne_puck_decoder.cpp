@@ -284,11 +284,11 @@ void VelodynePuckDecoder::packetCallback(
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the last revolution
-    sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
-        new velodyne_puck_msgs::VelodynePuckSweep());
     sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
     if (publish_point_cloud) publishPointCloud();
+    sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
+        new velodyne_puck_msgs::VelodynePuckSweep());
 
     // Prepare the next revolution
     sweep_start_time = msg->stamp.toSec() +
