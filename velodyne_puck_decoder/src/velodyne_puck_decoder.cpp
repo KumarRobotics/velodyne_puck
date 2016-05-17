@@ -28,7 +28,8 @@ VelodynePuckDecoder::VelodynePuckDecoder(
   is_first_sweep(true),
   last_azimuth(0.0),
   sweep_start_time(0.0),
-  packet_start_time(0.0) {
+  packet_start_time(0.0),
+  sweep_data(new velodyne_puck_msgs::VelodynePuckSweep()){
   return;
 }
 
