@@ -183,6 +183,7 @@ void VelodynePuckDecoder::publish() {
     // Group the points within the range.
     if (start_idx > end_idx) {
       for (int i = start_idx; i < scan.points.size(); ++i) {
+        if (i == 0 || i == scan.points.size()-1) continue;
         geometry_msgs::Point32 new_point;
         new_point.x = scan.points[i].x;
         new_point.y = scan.points[i].y;
@@ -193,6 +194,7 @@ void VelodynePuckDecoder::publish() {
       start_idx = 0;
     }
     for (int i = start_idx; i < end_idx; ++i) {
+      if (i == 0 || i == scan.points.size()-1) continue;
       geometry_msgs::Point32 new_point;
       new_point.x = scan.points[i].x;
       new_point.y = scan.points[i].y;
