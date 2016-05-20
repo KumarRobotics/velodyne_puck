@@ -10,7 +10,7 @@
     <param name="max_range" value="100.0"/>
     <param name="frequency" value="20.0"/>
     <param name="publish_point_cloud" value="false"/>
-    <param name="publish_scan_2d" value="false"/>
+    <param name="publish_scan_2d" value="true"/>
     <param name="scan_2d_index" value="7"/>
     <param name="scan_start_azimuth" value="4.7124"/>
     <param name="scan_end_azimuth" value="1.5708"/>

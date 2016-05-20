@@ -160,6 +160,8 @@ void VelodynePuckDecoder::publish() {
     const velodyne_puck_msgs::VelodynePuckScan& scan =
       sweep_data->scans[scan_2d_index];
     sensor_msgs::PointCloudPtr scan_pc(new sensor_msgs::PointCloud());
+    scan_pc->header.stamp = sweep_data->header.stamp;
+    scan_pc->header.frame_id = "velodyne";
     scan_pc->channels.push_back(sensor_msgs::ChannelFloat32());
     scan_pc->channels[0].name = "intensity";
 
