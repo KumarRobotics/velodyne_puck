@@ -165,14 +165,14 @@ void VelodynePuckDecoder::publish() {
 
     // Find the index of the start azimuth and end azimuth.
     int start_idx = 0, end_idx = 0;
-    for (int i = 0; i < scans.points.size(); ++i) {
-      if (scans.points[i].azimuth > scan_start_azimuth) {
+    for (int i = 0; i < scan.points.size(); ++i) {
+      if (scan.points[i].azimuth > scan_start_azimuth) {
         start_idx = i;
         break;
       }
     }
-    for (int i = 0; i < scans.points.size(); ++i) {
-      if (scans.points[i].azimuth > scan_end_azimuth) {
+    for (int i = 0; i < scan.points.size(); ++i) {
+      if (scan.points[i].azimuth > scan_end_azimuth) {
         end_idx = i;
         break;
       }
@@ -180,23 +180,23 @@ void VelodynePuckDecoder::publish() {
 
     // Group the points within the range.
     if (start_idx > end_idx) {
-      for (int i = start_idx; i < scans.points.size(); ++i) {
+      for (int i = start_idx; i < scan.points.size(); ++i) {
         geometry_msgs::Point32 new_point;
-        new_point.x = scans.points[i].x;
-        new_point.y = scans.points[i].y;
-        new_point.z = scans.points[i].z;
+        new_point.x = scan.points[i].x;
+        new_point.y = scan.points[i].y;
+        new_point.z = scan.points[i].z;
         scan_pc->points.push_back(new_point);
-        scan_pc->channels[0].values.push_back(scans.points[i].intensity);
+        scan_pc->channels[0].values.push_back(scan.points[i].intensity);
       }
       start_idx = 0;
     }
     for (int i = start_idx; i < end_idx; ++i) {
       geometry_msgs::Point32 new_point;
-      new_point.x = scans.points[i].x;
-      new_point.y = scans.points[i].y;
-      new_point.z = scans.points[i].z;
+      new_point.x = scan.points[i].x;
+      new_point.y = scan.points[i].y;
+      new_point.z = scan.points[i].z;
       scan_pc->points.push_back(new_point);
-      scan_pc->channels[0].values.push_back(scans.points[i].intensity);
+      scan_pc->channels[0].values.push_back(scan.points[i].intensity);
     }
     scan_2d_pub.publish(scan_pc);
   }
