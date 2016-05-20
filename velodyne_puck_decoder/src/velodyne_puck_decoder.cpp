@@ -99,33 +99,6 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
   return true;
 }
 
-//void VelodynePuckDecoder::publishPointCloud() {
-//  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
-//      new pcl::PointCloud<pcl::PointXYZI>());
-//  point_cloud->header.stamp =
-//    pcl_conversions::toPCL(sweep_data->header).stamp;
-//  point_cloud->header.frame_id = "velodyne";
-//  point_cloud->height = 1;
-//
-//  for (size_t i = 0; i < 16; ++i) {
-//    const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
-//    for (size_t j = 0; j < scan.points.size(); ++j) {
-//      pcl::PointXYZI point;
-//      point.x = scan.points[j].x;
-//      point.y = scan.points[j].y;
-//      point.z = scan.points[j].z;
-//      point.intensity = scan.points[j].intensity;
-//      point_cloud->points.push_back(point);
-//      ++point_cloud->width;
-//    }
-//  }
-//
-//  point_cloud_pub.publish(point_cloud);
-//  //sweep_pub.publish(sweep_data);
-//
-//  return;
-//}
-
 void VelodynePuckDecoder::publish() {
   // Publish velodyne sweep data. of type
   // velodye_puck_msgs::VelodynePuckSweep
@@ -380,11 +353,6 @@ void VelodynePuckDecoder::packetCallback(
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
     // Publish the current velodyne sweep.
-    //sweep_data->header.stamp = ros::Time(sweep_start_time);
-    //sweep_pub.publish(sweep_data);
-    //if (publish_point_cloud) publishPointCloud();
-    //sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
-    //    new velodyne_puck_msgs::VelodynePuckSweep());
     publish();
 
     // Prepare the next revolution
