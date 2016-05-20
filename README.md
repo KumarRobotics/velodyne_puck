@@ -6,9 +6,9 @@
 
 The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/). The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the LTE version [here](http://velodynelidar.com/vlp-16-lite.html).
 
-The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth.
+The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth. Although the driver publishes each sweep as a customized message, but it can be configured to publish point cloud of type `sensor_msgs/PointCloud2`, or a single scan of type `sensor_msgs/PointCloud`.
 
-The package is tested on Ubuntu 14.04 with ROS indigo.
+The package is tested on Ubuntu 14.04 (ROS indigo) and Ubuntu 16.04 (ROS kinetic).
 
 ## License
 This driver is developed based on [ROS velodyne driver](http://wiki.ros.org/velodyne_driver), which originally has the BSD license. The COPYING file is kept in this package. However, the changed files have the GNU General Public License V3.0.
@@ -53,11 +53,25 @@ Points outside this range will be removed.
 
 `frequency` (`frequency`, `20.0`)
 
-Note that the driver does not change the frequency of the sensor. If needed, the RPM of the sensor should be set through the brower (see [user manual](http://velodynelidar.com/docs/manuals/63-9243%20Rev%20B%20User%20Manual%20and%20Programming%20Guide,VLP-16.pdf) for more details). And the `frequency` parameter in the launch file should be set accordingly.
+Note that the driver does not change the frequency of the sensor. If needed, the RPM of the sensor should be set through the browser (see [user manual](http://velodynelidar.com/docs/manuals/63-9243%20Rev%20B%20User%20Manual%20and%20Programming%20Guide,VLP-16.pdf) for more details). And the `frequency` parameter in the launch file should be set accordingly.
 
 `publish_point_cloud` (`bool`, `false`)
 
 If set to true, the decoder will additionally send out a local point cloud consisting of the points in each revolution.
+
+`publish_scan_2d` (`bool`, `false`)
+
+If set to true, the decoder will also publish a single scan based on the specified scan index and azimuth range. The existence of this topic is to make the driver backward compatible with 2D laser odometry algorithms.
+
+`scan_2d_index` (`int`, `7`)
+
+The desired scan to be used ranging from 0 to 15, starting from the bottom of the sensor. The 6th and 7th scans are the scans in the middle, which are approximately parallel to the xy plane of the sensor frame.
+
+`scan_start_azimuth` (`double`, `1.5*M_PI`)
+
+`scan_end_azimuth` (`double`, `0.5*M_PI`)
+
+Marks the start and end azimuth values of the desired scan. Note that the value for both of the parameters should be within `[0, 2*M_PI)`. Therefore, the `scan_start_azimuth` is not necessarily smaller than `scan_end_azimuth`.
 
 **Published Topics**
 
@@ -68,6 +82,10 @@ The message arranges the points within each sweep based on its scan index and az
 `velodyne_point_cloud` (`sensor_msgs/PointCloud2`)
 
 This is only published when the `publish_point_cloud` is set to `true` in the launch file.
+
+`velodyne_scan_2d` (`sensor_msgs/PointCloud`)
+
+This is only published when the `publish_scan_2d` is set to `true` in the launch file. Due to historical reasons, the published topic is of type `sensor_msgs/PointCloud`.
 
 **Node**
 
