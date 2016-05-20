@@ -27,6 +27,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
 
 #include <pcl_conversions/pcl_conversions.h>
@@ -161,7 +162,8 @@ private:
   void packetCallback(const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg);
 
   // Publish data
-  void publishPointCloud();
+  void publish();
+  //void publishPointCloud();
 
   // Check if a point is in the required range.
   bool isPointInRange(const double& distance) {
@@ -179,6 +181,10 @@ private:
   double max_range;
   double frequency;
   bool publish_point_cloud;
+  bool publish_scan_2d;
+  int scan_2d_index;
+  double scan_start_azimuth;
+  double scan_end_azimuth;
 
   double cos_azimuth_table[6300];
   double sin_azimuth_table[6300];
@@ -199,6 +205,7 @@ private:
   ros::Subscriber packet_sub;
   ros::Publisher sweep_pub;
   ros::Publisher point_cloud_pub;
+  ros::Publisher scan_2d_pub;
 
 };
 

@@ -37,7 +37,11 @@ bool VelodynePuckDecoder::loadParameters() {
   pnh.param<double>("min_range", min_range, 0.5);
   pnh.param<double>("max_range", max_range, 100.0);
   pnh.param<double>("frequency", frequency, 20.0);
-  pnh.param<bool>("publish_point_cloud", publish_point_cloud, true);
+  pnh.param<bool>("publish_point_cloud", publish_point_cloud, false);
+  pnh.param<bool>("publish_scan_2d", publish_scan_2d, false);
+  pnh.param<int>("scan_2d_index", scan_2d_index, 7);
+  pnh.param<double>("scan_start_azimuth", scan_start_azimuth, 1.5*M_PI);
+  pnh.param<double>("scan_end_azimuth", scan_end_azimuth, 0.5*M_PI);
   return true;
 }
 
@@ -46,8 +50,14 @@ bool VelodynePuckDecoder::createRosIO() {
       "velodyne_packet", 100, &VelodynePuckDecoder::packetCallback, this);
   sweep_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckSweep>(
       "velodyne_sweep", 10);
-  point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>(
-      "velodyne_point_cloud", 10);
+  if (publish_point_cloud) {
+    point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>(
+        "velodyne_point_cloud", 10);
+  }
+  if (publish_scan_2d) {
+    scan_2d_pub = nh.advertise<sensor_msgs::PointCloud>(
+        "velodyne_scan_2d", 10);
+  }
   return true;
 }
 
@@ -89,30 +99,111 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
   return true;
 }
 
-void VelodynePuckDecoder::publishPointCloud() {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
-      new pcl::PointCloud<pcl::PointXYZI>());
-  point_cloud->header.stamp =
-    pcl_conversions::toPCL(sweep_data->header).stamp;
-  point_cloud->header.frame_id = "velodyne";
-  point_cloud->height = 1;
+//void VelodynePuckDecoder::publishPointCloud() {
+//  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
+//      new pcl::PointCloud<pcl::PointXYZI>());
+//  point_cloud->header.stamp =
+//    pcl_conversions::toPCL(sweep_data->header).stamp;
+//  point_cloud->header.frame_id = "velodyne";
+//  point_cloud->height = 1;
+//
+//  for (size_t i = 0; i < 16; ++i) {
+//    const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
+//    for (size_t j = 0; j < scan.points.size(); ++j) {
+//      pcl::PointXYZI point;
+//      point.x = scan.points[j].x;
+//      point.y = scan.points[j].y;
+//      point.z = scan.points[j].z;
+//      point.intensity = scan.points[j].intensity;
+//      point_cloud->points.push_back(point);
+//      ++point_cloud->width;
+//    }
+//  }
+//
+//  point_cloud_pub.publish(point_cloud);
+//  //sweep_pub.publish(sweep_data);
+//
+//  return;
+//}
 
-  for (size_t i = 0; i < 16; ++i) {
-    const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
-    for (size_t j = 0; j < scan.points.size(); ++j) {
-      pcl::PointXYZI point;
-      point.x = scan.points[j].x;
-      point.y = scan.points[j].y;
-      point.z = scan.points[j].z;
-      point.intensity = scan.points[j].intensity;
-      point_cloud->points.push_back(point);
-      ++point_cloud->width;
+void VelodynePuckDecoder::publish() {
+  // Publish velodyne sweep data. of type
+  // velodye_puck_msgs::VelodynePuckSweep
+  sweep_data->header.stamp = ros::Time(sweep_start_time);
+  sweep_pub.publish(sweep_data);
+
+  // Publish velodyne sweep data of type sensor_msgs::PointCloud2
+  if (publish_point_cloud) {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
+        new pcl::PointCloud<pcl::PointXYZI>());
+    point_cloud->header.stamp =
+      pcl_conversions::toPCL(sweep_data->header).stamp;
+    point_cloud->header.frame_id = "velodyne";
+    point_cloud->height = 1;
+
+    for (size_t i = 0; i < 16; ++i) {
+      const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
+      for (size_t j = 0; j < scan.points.size(); ++j) {
+        pcl::PointXYZI point;
+        point.x = scan.points[j].x;
+        point.y = scan.points[j].y;
+        point.z = scan.points[j].z;
+        point.intensity = scan.points[j].intensity;
+        point_cloud->points.push_back(point);
+        ++point_cloud->width;
+      }
     }
+    point_cloud_pub.publish(point_cloud);
   }
 
-  point_cloud_pub.publish(point_cloud);
-  //sweep_pub.publish(sweep_data);
+  if (publish_scan_2d) {
+    const velodyne_puck_msgs::VelodynePuckScan& scan =
+      sweep_data->scans[scan_2d_index];
+    sensor_msgs::PointCloudPtr scan_pc(new sensor_msgs::PointCloud());
+    scan_pc->channels.push_back(sensor_msgs::ChannelFloat32());
+    scan_pc->channels[0].name = "intensity";
 
+    // Find the index of the start azimuth and end azimuth.
+    int start_idx = 0, end_idx = 0;
+    for (int i = 0; i < scans.points.size(); ++i) {
+      if (scans.points[i].azimuth > scan_start_azimuth) {
+        start_idx = i;
+        break;
+      }
+    }
+    for (int i = 0; i < scans.points.size(); ++i) {
+      if (scans.points[i].azimuth > scan_end_azimuth) {
+        end_idx = i;
+        break;
+      }
+    }
+
+    // Group the points within the range.
+    if (start_idx > end_idx) {
+      for (int i = start_idx; i < scans.points.size(); ++i) {
+        geometry_msgs::Point32 new_point;
+        new_point.x = scans.points[i].x;
+        new_point.y = scans.points[i].y;
+        new_point.z = scans.points[i].z;
+        scan_pc->points.push_back(new_point);
+        scan_pc->channels[0].values.push_back(scans.points[i].intensity);
+      }
+      start_idx = 0;
+    }
+    for (int i = start_idx; i < end_idx; ++i) {
+      geometry_msgs::Point32 new_point;
+      new_point.x = scans.points[i].x;
+      new_point.y = scans.points[i].y;
+      new_point.z = scans.points[i].z;
+      scan_pc->points.push_back(new_point);
+      scan_pc->channels[0].values.push_back(scans.points[i].intensity);
+    }
+    scan_2d_pub.publish(scan_pc);
+  }
+
+  // Renew the sweep_data pointer.
+  sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
+      new velodyne_puck_msgs::VelodynePuckSweep());
   return;
 }
 
@@ -284,12 +375,13 @@ void VelodynePuckDecoder::packetCallback(
 
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
-    // Publish the last revolution
-    sweep_data->header.stamp = ros::Time(sweep_start_time);
-    sweep_pub.publish(sweep_data);
-    if (publish_point_cloud) publishPointCloud();
-    sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
-        new velodyne_puck_msgs::VelodynePuckSweep());
+    // Publish the current velodyne sweep.
+    //sweep_data->header.stamp = ros::Time(sweep_start_time);
+    //sweep_pub.publish(sweep_data);
+    //if (publish_point_cloud) publishPointCloud();
+    //sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
+    //    new velodyne_puck_msgs::VelodynePuckSweep());
+    publish();
 
     // Prepare the next revolution
     sweep_start_time = msg->stamp.toSec() +
