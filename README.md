@@ -6,7 +6,7 @@
 
 The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/). The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the LTE version [here](http://velodynelidar.com/vlp-16-lite.html).
 
-The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth. Although the driver publishes each sweep as a customized message, but it can be configured to publish point cloud of type `sensor_msgs/PointCloud2`, or a single scan of type `sensor_msgs/PointCloud`.
+The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth. Although the driver publishes each sweep as a customized message, it can be configured to publish point cloud of type `sensor_msgs/PointCloud2`, or a single scan of type `sensor_msgs/PointCloud`.
 
 The package is tested on Ubuntu 14.04 (ROS indigo) and Ubuntu 16.04 (ROS kinetic).
 
