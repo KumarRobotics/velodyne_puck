@@ -1,6 +1,6 @@
 # velodyne\_puck
 
-[![Build Status](https://travis-ci.org/ke-sun/velodyne_puck.svg?branch=master)](https://travis-ci.org/ke-sun/velodyne_puck)
+[![Build Status](https://travis-ci.org/KumarRobotics/velodyne_puck.svg?branch=scan2d)](https://travis-ci.org/KumarRobotics/velodyne_puck)
 
 ![Picture of Velodyne Puck](http://velodynelidar.com/images/products/vlp-16/puck.png)
 
