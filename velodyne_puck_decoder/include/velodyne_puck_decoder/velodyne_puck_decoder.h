@@ -193,6 +193,9 @@ private:
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
 
+  std::string fixed_frame_id;
+  std::string child_frame_id;
+
   velodyne_puck_msgs::VelodynePuckSweepPtr sweep_data;
   sensor_msgs::PointCloud2 point_cloud_data;
 

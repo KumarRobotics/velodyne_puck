@@ -38,6 +38,9 @@ bool VelodynePuckDecoder::loadParameters() {
   pnh.param<double>("max_range", max_range, 100.0);
   pnh.param<double>("frequency", frequency, 20.0);
   pnh.param<bool>("publish_point_cloud", publish_point_cloud, true);
+
+  pnh.param<string>("fixed_frame_id", fixed_frame_id, "map");
+  pnh.param<string>("child_frame_id", child_frame_id, "velodyne");
   return true;
 }
 
@@ -94,7 +97,7 @@ void VelodynePuckDecoder::publishPointCloud() {
       new pcl::PointCloud<pcl::PointXYZI>());
   point_cloud->header.stamp =
     pcl_conversions::toPCL(sweep_data->header).stamp;
-  point_cloud->header.frame_id = "velodyne";
+  point_cloud->header.frame_id = child_frame_id;
   point_cloud->height = 1;
 
   for (size_t i = 0; i < 16; ++i) {
