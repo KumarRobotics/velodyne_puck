@@ -23,7 +23,7 @@ catkin_package(
     pcl_ros pcl_conversions
     velodyne_puck_msgs
   DEPENDS
-    boost
+    Boost
 )
 
 include_directories(
