@@ -102,7 +102,11 @@ void VelodynePuckDecoder::publishPointCloud() {
 
   for (size_t i = 0; i < 16; ++i) {
     const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
-    for (size_t j = 0; j < scan.points.size(); ++j) {
+    // The first and last point in each scan is ignored, which
+    // seems to be corrupted based on the received data.
+    // TODO: The two end points should be removed directly
+    //    in the scans.
+    for (size_t j = 1; j < scan.points.size()-1; ++j) {
       pcl::PointXYZI point;
       point.x = scan.points[j].x;
       point.y = scan.points[j].y;
