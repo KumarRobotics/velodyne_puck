@@ -106,6 +106,7 @@ void VelodynePuckDecoder::publishPointCloud() {
     // seems to be corrupted based on the received data.
     // TODO: The two end points should be removed directly
     //    in the scans.
+    if (scan.points.size() == 0) continue;
     for (size_t j = 1; j < scan.points.size()-1; ++j) {
       pcl::PointXYZI point;
       point.x = scan.points[j].x;
