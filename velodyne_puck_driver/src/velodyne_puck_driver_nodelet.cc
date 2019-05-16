@@ -15,23 +15,18 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string>
 #include <boost/thread.hpp>
+#include <string>
 
-#include <ros/ros.h>
-#include <pluginlib/class_list_macros.h>
 #include <nodelet/nodelet.h>
+#include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
 
 #include <velodyne_puck_driver/velodyne_puck_driver_nodelet.h>
 
+namespace velodyne_puck_driver {
 
-namespace velodyne_puck_driver
-{
-
-VelodynePuckDriverNodelet::VelodynePuckDriverNodelet():
-  running(false) {
-  return;
-}
+VelodynePuckDriverNodelet::VelodynePuckDriverNodelet() : running(false) {}
 
 VelodynePuckDriverNodelet::~VelodynePuckDriverNodelet() {
   if (running) {
@@ -40,11 +35,9 @@ VelodynePuckDriverNodelet::~VelodynePuckDriverNodelet() {
     device_thread->join();
     NODELET_INFO("driver thread stopped");
   }
-  return;
 }
 
-void VelodynePuckDriverNodelet::onInit()
-{
+void VelodynePuckDriverNodelet::onInit() {
   // start the driver
   velodyne_puck_driver.reset(
       new VelodynePuckDriver(getNodeHandle(), getPrivateNodeHandle()));
@@ -55,26 +48,24 @@ void VelodynePuckDriverNodelet::onInit()
 
   // spawn device poll thread
   running = true;
-  device_thread = boost::shared_ptr< boost::thread >
-    (new boost::thread(boost::bind(&VelodynePuckDriverNodelet::devicePoll, this)));
+  device_thread = boost::shared_ptr<boost::thread>(new boost::thread(
+      boost::bind(&VelodynePuckDriverNodelet::devicePoll, this)));
 }
 
 /** @brief Device poll thread main loop. */
-void VelodynePuckDriverNodelet::devicePoll()
-{
-  while(ros::ok()) {
+void VelodynePuckDriverNodelet::devicePoll() {
+  while (ros::ok()) {
     // poll device until end of file
     running = velodyne_puck_driver->polling();
-    if (!running)
-      break;
+    if (!running) break;
   }
   running = false;
 }
 
-} // namespace velodyne_driver
+}  // namespace velodyne_puck_driver
 
 // Register this plugin with pluginlib.  Names must match nodelet_velodyne.xml.
 //
 // parameters are: package, class name, class type, base class type
-PLUGINLIB_EXPORT_CLASS(
-  velodyne_puck_driver::VelodynePuckDriverNodelet, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(velodyne_puck_driver::VelodynePuckDriverNodelet,
+                       nodelet::Nodelet);

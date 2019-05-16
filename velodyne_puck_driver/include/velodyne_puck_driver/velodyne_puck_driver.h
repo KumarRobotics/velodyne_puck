@@ -15,19 +15,18 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VELODYNE_PUCK_DRIVER_H
-#define VELODYNE_PUCK_DRIVER_H
+#pragma once
 
-#include <unistd.h>
-#include <stdio.h>
 #include <netinet/in.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <string>
 
 #include <boost/shared_ptr.hpp>
 
-#include <ros/ros.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
+#include <ros/ros.h>
 
 #include <velodyne_puck_msgs/VelodynePuckPacket.h>
 
@@ -37,19 +36,17 @@ static uint16_t UDP_PORT_NUMBER = 2368;
 static uint16_t PACKET_SIZE = 1206;
 
 class VelodynePuckDriver {
-public:
-
+ public:
   VelodynePuckDriver(ros::NodeHandle& n, ros::NodeHandle& pn);
   ~VelodynePuckDriver();
 
   bool initialize();
   bool polling();
 
-  typedef boost::shared_ptr<VelodynePuckDriver> VelodynePuckDriverPtr;
-  typedef boost::shared_ptr<const VelodynePuckDriver> VelodynePuckDriverConstPtr;
+  using Ptr = boost::shared_ptr<VelodynePuckDriver>;
+  using ConstPtr = boost::shared_ptr<const VelodynePuckDriver>;
 
-private:
-
+ private:
   bool loadParameters();
   bool createRosIO();
   bool openUDPPort();
@@ -74,9 +71,4 @@ private:
   double diag_max_freq;
 };
 
-typedef VelodynePuckDriver::VelodynePuckDriverPtr VelodynePuckDriverPtr;
-typedef VelodynePuckDriver::VelodynePuckDriverConstPtr VelodynePuckDriverConstPtr;
-
-} // namespace velodyne_driver
-
-#endif // _VELODYNE_DRIVER_H_
+}  // namespace velodyne_puck_driver

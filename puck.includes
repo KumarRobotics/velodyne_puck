@@ -1,2 +1,6 @@
-velodyne_puck_decoder/include/velodyne_puck_decoder
-velodyne_puck_driver/include/velodyne_puck_driver
+velodyne_puck_decoder/include
+velodyne_puck_driver/include
+/opt/ros/melodic/include
+/usr/local/include/eigen3
+/usr/include/pcl-1.8
+~/Workspace/ws/test_ws/devel/include

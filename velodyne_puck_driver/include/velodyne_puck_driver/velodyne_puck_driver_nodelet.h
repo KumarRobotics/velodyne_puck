@@ -15,34 +15,31 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string>
 #include <boost/thread.hpp>
+#include <string>
 
-#include <ros/ros.h>
-#include <pluginlib/class_list_macros.h>
 #include <nodelet/nodelet.h>
+#include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
 
 #include <velodyne_puck_driver/velodyne_puck_driver.h>
 
-namespace velodyne_puck_driver
-{
+namespace velodyne_puck_driver {
 
-class VelodynePuckDriverNodelet: public nodelet::Nodelet
-{
-public:
-
+class VelodynePuckDriverNodelet : public nodelet::Nodelet {
+ public:
   VelodynePuckDriverNodelet();
   ~VelodynePuckDriverNodelet();
 
-private:
+ private:
+  virtual void onInit();
+  virtual void devicePoll();
 
-  virtual void onInit(void);
-  virtual void devicePoll(void);
-
-  volatile bool running;               ///< device thread is running
+  volatile bool running;  ///< device thread is running
   boost::shared_ptr<boost::thread> device_thread;
 
-  VelodynePuckDriverPtr velodyne_puck_driver; ///< driver implementation class
+  VelodynePuckDriver::Ptr
+      velodyne_puck_driver;  ///< driver implementation class
 };
 
-} // namespace velodyne_driver
+}  // namespace velodyne_puck_driver

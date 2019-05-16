@@ -16,7 +16,6 @@
  */
 
 #include <ros/ros.h>
-#include <google/profiler.h>
 #include <velodyne_puck_decoder/velodyne_puck_decoder.h>
 
 int main(int argc, char** argv) {
@@ -24,7 +23,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  velodyne_puck_decoder::VelodynePuckDecoderPtr decoder(
+  velodyne_puck_decoder::VelodynePuckDecoder::Ptr decoder(
       new velodyne_puck_decoder::VelodynePuckDecoder(nh, pnh));
 
   if (!decoder->initialize()) {
@@ -32,9 +31,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  ProfilerStart("velodyne_decoder.prof");
   ros::spin();
-  ProfilerStop();
-
   return 0;
 }

@@ -20,16 +20,16 @@
 namespace velodyne_puck_decoder {
 
 void VelodynePuckDecoderNodelet::onInit() {
-  decoder.reset(new VelodynePuckDecoder(
-        getNodeHandle(), getPrivateNodeHandle()));
-  if(!decoder->initialize()) {
+  decoder.reset(
+      new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
+
+  if (!decoder->initialize()) {
     ROS_ERROR("Cannot initialize the velodyne puck decoder...");
     return;
   }
-  return;
 }
 
-} // end namespace velodyne_puck_decoder
+}  // end namespace velodyne_puck_decoder
 
-PLUGINLIB_EXPORT_CLASS(
-    velodyne_puck_decoder::VelodynePuckDecoderNodelet, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(velodyne_puck_decoder::VelodynePuckDecoderNodelet,
+                       nodelet::Nodelet);
