@@ -24,16 +24,19 @@
 #include <unistd.h>
 #include <cmath>
 
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
-
 #include "velodyne_puck_driver.h"
 
 namespace velodyne_puck_driver {
 
+static constexpr uint16_t UDP_PORT_NUMBER = 2368;
+static constexpr size_t kPacketSize = sizeof(VelodynePuckPacket().data);
+static constexpr int kError = -1;
+
 VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
                                        const ros::NodeHandle &pn)
-    : nh(n), pnh(pn) {}
+    : nh(n), pnh(pn) {
+  ROS_INFO("packet size: %zu", kPacketSize);
+}
 
 VelodynePuckDriver::~VelodynePuckDriver() { (void)close(socket_id); }
 
@@ -65,8 +68,7 @@ bool VelodynePuckDriver::createRosIO() {
       TimeStampStatusParam()));
 
   // Output
-  packet_pub =
-      pnh.advertise<velodyne_puck_msgs::VelodynePuckPacket>("packet", 10);
+  packet_pub = pnh.advertise<VelodynePuckPacket>("packet", 10);
 
   return true;
 }
@@ -116,14 +118,13 @@ bool VelodynePuckDriver::initialize() {
   return true;
 }
 
-int VelodynePuckDriver::getPacket(
-    velodyne_puck_msgs::VelodynePuckPacketPtr &packet) {
-  double time1 = ros::Time::now().toSec();
+int VelodynePuckDriver::getPacket(VelodynePuckPacket &packet) {
+  const auto time1 = ros::Time::now().toSec();
 
   struct pollfd fds[1];
   fds[0].fd = socket_id;
   fds[0].events = POLLIN;
-  static const int POLL_TIMEOUT = 1000;  // one second (in msec)
+  const int timeout_ms = 1000;  // one second (in msec)
 
   sockaddr_in sender_address;
   socklen_t sender_address_len = sizeof(sender_address);
@@ -148,37 +149,39 @@ int VelodynePuckDriver::getPacket(
 
     // poll() until input available
     do {
-      int retval = poll(fds, 1, POLL_TIMEOUT);
-      if (retval < 0)  // poll() error?
-      {
+      const int retval = poll(fds, 1, timeout_ms);
+
+      if (retval < 0) {
+        // poll() error?
         if (errno != EINTR) ROS_ERROR("poll() error: %s", strerror(errno));
-        return 1;
-      }
-      if (retval == 0)  // poll() timeout?
-      {
+        return kError;
+      } else if (retval == 0) {
+        // poll() timeout?
         ROS_WARN("Velodyne poll() timeout");
-        return 1;
+        return kError;
       }
+
       if ((fds[0].revents & POLLERR) || (fds[0].revents & POLLHUP) ||
-          (fds[0].revents & POLLNVAL))  // device error?
-      {
+          (fds[0].revents & POLLNVAL)) {
+        // device error?
         ROS_ERROR("poll() reports Velodyne error");
-        return 1;
+        return kError;
       }
     } while ((fds[0].revents & POLLIN) == 0);
 
     // Receive packets that should now be available from the
     // socket using a blocking read.
-    ssize_t nbytes = recvfrom(socket_id, &packet->data[0], PACKET_SIZE, 0,
-                              (sockaddr *)&sender_address, &sender_address_len);
+    const ssize_t nbytes =
+        recvfrom(socket_id, &packet.data[0], kPacketSize, 0,
+                 (sockaddr *)&sender_address, &sender_address_len);
 
     if (nbytes < 0) {
       if (errno != EWOULDBLOCK) {
         perror("recvfail");
-        ROS_INFO("recvfail");
-        return 1;
+        ROS_ERROR("recvfail");
+        return kError;
       }
-    } else if ((size_t)nbytes == PACKET_SIZE) {
+    } else if ((size_t)nbytes == kPacketSize) {
       // read successful,
       // if packet is not from the lidar scanner we selected by IP,
       // continue otherwise we are done
@@ -194,16 +197,17 @@ int VelodynePuckDriver::getPacket(
 
   // Average the times at which we begin and end reading.  Use that to
   // estimate when the scan occurred.
-  double time2 = ros::Time::now().toSec();
-  packet->stamp = ros::Time((time2 + time1) / 2.0);
+  const auto time2 = ros::Time::now().toSec();
+  packet.stamp = ros::Time((time2 + time1) / 2.0);
 
   return 0;
 }
 
 bool VelodynePuckDriver::polling() {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
-  velodyne_puck_msgs::VelodynePuckPacketPtr packet(
-      new velodyne_puck_msgs::VelodynePuckPacket());
+  auto packet = boost::make_shared<VelodynePuckPacket>();
+  //      packet(
+  //      new velodyne_puck_msgs::VelodynePuckPacket());
 
   // Since the velodyne delivers data at a very high rate, keep
   // reading and publishing scans as fast as possible.
@@ -219,14 +223,14 @@ bool VelodynePuckDriver::polling() {
   //  }
   while (true) {
     // keep reading until full packet received
-    int rc = getPacket(packet);
+    const int rc = getPacket(*packet);
     if (rc == 0) break;        // got a full packet?
     if (rc < 0) return false;  // end of file reached?
   }
 
   // publish message using time of last packet read
   ROS_DEBUG("Publishing a full Velodyne scan.");
-  packet_pub.publish(*packet);
+  packet_pub.publish(packet);
 
   // notify diagnostics that a message has been published, updating
   // its status
