@@ -16,7 +16,7 @@
  */
 
 #include <ros/ros.h>
-#include <velodyne_puck_driver/velodyne_puck_driver.h>
+#include "velodyne_puck_driver.h"
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "velodyne_puck_driver_node");

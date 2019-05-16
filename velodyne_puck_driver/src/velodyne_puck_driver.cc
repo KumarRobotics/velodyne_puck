@@ -66,7 +66,7 @@ bool VelodynePuckDriver::createRosIO() {
 
   // Output
   packet_pub =
-      nh.advertise<velodyne_puck_msgs::VelodynePuckPacket>("packet", 10);
+      pnh.advertise<velodyne_puck_msgs::VelodynePuckPacket>("packet", 10);
 
   return true;
 }

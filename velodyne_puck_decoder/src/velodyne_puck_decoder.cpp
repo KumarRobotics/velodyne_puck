@@ -43,10 +43,10 @@ bool VelodynePuckDecoder::loadParameters() {
 }
 
 bool VelodynePuckDecoder::createRosIO() {
-  packet_sub = nh.subscribe<velodyne_puck_msgs::VelodynePuckPacket>(
+  packet_sub = pnh.subscribe<velodyne_puck_msgs::VelodynePuckPacket>(
       "packet", 100, &VelodynePuckDecoder::packetCallback, this);
-  sweep_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckSweep>("sweep", 10);
-  cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
+  sweep_pub = pnh.advertise<velodyne_puck_msgs::VelodynePuckSweep>("sweep", 10);
+  cloud_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
   return true;
 }
 
