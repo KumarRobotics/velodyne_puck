@@ -15,14 +15,9 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/thread.hpp>
-#include <string>
-
-#include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
 
-#include <velodyne_puck_driver/velodyne_puck_driver_nodelet.h>
+#include "velodyne_puck_driver_nodelet.h"
 
 namespace velodyne_puck_driver {
 

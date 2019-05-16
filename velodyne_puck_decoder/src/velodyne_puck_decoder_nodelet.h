@@ -17,10 +17,9 @@
 #pragma once
 
 #include <nodelet/nodelet.h>
-#include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
 
-#include <velodyne_puck_decoder/velodyne_puck_decoder.h>
+#include "velodyne_puck_decoder.h"
 
 namespace velodyne_puck_decoder {
 

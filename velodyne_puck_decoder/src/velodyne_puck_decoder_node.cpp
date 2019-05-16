@@ -16,7 +16,7 @@
  */
 
 #include <ros/ros.h>
-#include <velodyne_puck_decoder/velodyne_puck_decoder.h>
+#include "velodyne_puck_decoder.h"
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "velodyne_puck_decoder_node");

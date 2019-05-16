@@ -15,7 +15,9 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <velodyne_puck_decoder/velodyne_puck_decoder_nodelet.h>
+#include <pluginlib/class_list_macros.h>
+
+#include "velodyne_puck_decoder_nodelet.h"
 
 namespace velodyne_puck_decoder {
 

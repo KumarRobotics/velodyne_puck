@@ -20,9 +20,6 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <string>
-
-#include <boost/shared_ptr.hpp>
 
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
@@ -35,9 +32,12 @@ namespace velodyne_puck_driver {
 static uint16_t UDP_PORT_NUMBER = 2368;
 static uint16_t PACKET_SIZE = 1206;
 
+/**
+ * @brief The VelodynePuckDriver class
+ */
 class VelodynePuckDriver {
  public:
-  VelodynePuckDriver(ros::NodeHandle& n, ros::NodeHandle& pn);
+  VelodynePuckDriver(const ros::NodeHandle& n, const ros::NodeHandle& pn);
   ~VelodynePuckDriver();
 
   bool initialize();
@@ -55,7 +55,7 @@ class VelodynePuckDriver {
   // Ethernet relate variables
   std::string device_ip_string;
   in_addr device_ip;
-  int socket_id;
+  int socket_id{-1};
 
   // ROS related variables
   ros::NodeHandle nh;

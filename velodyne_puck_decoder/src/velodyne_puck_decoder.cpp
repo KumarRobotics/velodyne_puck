@@ -15,7 +15,7 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <velodyne_puck_decoder/velodyne_puck_decoder.h>
+#include "velodyne_puck_decoder.h"
 
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -38,19 +38,15 @@ bool VelodynePuckDecoder::loadParameters() {
   ROS_INFO("frequency: %f", frequency);
 
   pnh.param<bool>("publish_cloud", publish_cloud, true);
-
-  pnh.param<string>("fixed_frame_id", fixed_frame_id, "map");
-  pnh.param<string>("child_frame_id", child_frame_id, "velodyne");
+  pnh.param<string>("frame_id", frame_id, "velodyne");
   return true;
 }
 
 bool VelodynePuckDecoder::createRosIO() {
   packet_sub = nh.subscribe<velodyne_puck_msgs::VelodynePuckPacket>(
-      "velodyne_packet", 100, &VelodynePuckDecoder::packetCallback, this);
-  sweep_pub =
-      nh.advertise<velodyne_puck_msgs::VelodynePuckSweep>("velodyne_sweep", 10);
-  cloud_pub =
-      nh.advertise<sensor_msgs::PointCloud2>("velodyne_point_cloud", 10);
+      "packet", 100, &VelodynePuckDecoder::packetCallback, this);
+  sweep_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckSweep>("sweep", 10);
+  cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
   return true;
 }
 
@@ -97,7 +93,7 @@ void VelodynePuckDecoder::publishPointCloud() {
   pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
       new pcl::PointCloud<pcl::PointXYZI>());
   point_cloud->header.stamp = pcl_conversions::toPCL(sweep_data->header).stamp;
-  point_cloud->header.frame_id = child_frame_id;
+  point_cloud->header.frame_id = frame_id;
   point_cloud->height = 1;
 
   for (size_t i = 0; i < 16; ++i) {

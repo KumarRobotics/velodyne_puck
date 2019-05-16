@@ -23,23 +23,24 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cmath>
-#include <string>
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 
-#include <velodyne_puck_driver/velodyne_puck_driver.h>
+#include "velodyne_puck_driver.h"
 
 namespace velodyne_puck_driver {
 
-VelodynePuckDriver::VelodynePuckDriver(ros::NodeHandle& n, ros::NodeHandle& pn)
-    : nh(n), pnh(pn), socket_id(-1) {}
+VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
+                                       const ros::NodeHandle &pn)
+    : nh(n), pnh(pn) {}
 
 VelodynePuckDriver::~VelodynePuckDriver() { (void)close(socket_id); }
 
 bool VelodynePuckDriver::loadParameters() {
   pnh.param("frame_id", frame_id, std::string("velodyne"));
   pnh.param("device_ip", device_ip_string, std::string("192.168.1.201"));
+  ROS_INFO("device_ip: %s", device_ip_string.c_str());
   inet_aton(device_ip_string.c_str(), &device_ip);
 
   return true;
@@ -64,8 +65,8 @@ bool VelodynePuckDriver::createRosIO() {
       TimeStampStatusParam()));
 
   // Output
-  packet_pub = nh.advertise<velodyne_puck_msgs::VelodynePuckPacket>(
-      "velodyne_packet", 10);
+  packet_pub =
+      nh.advertise<velodyne_puck_msgs::VelodynePuckPacket>("packet", 10);
 
   return true;
 }
@@ -83,7 +84,7 @@ bool VelodynePuckDriver::openUDPPort() {
   my_addr.sin_port = htons(UDP_PORT_NUMBER);  // short, in network byte order
   my_addr.sin_addr.s_addr = INADDR_ANY;       // automatically fill in my IP
 
-  if (bind(socket_id, (sockaddr*)&my_addr, sizeof(sockaddr)) == -1) {
+  if (bind(socket_id, (sockaddr *)&my_addr, sizeof(sockaddr)) == -1) {
     perror("bind");  // TODO: ROS_ERROR errno
     return false;
   }
@@ -116,7 +117,7 @@ bool VelodynePuckDriver::initialize() {
 }
 
 int VelodynePuckDriver::getPacket(
-    velodyne_puck_msgs::VelodynePuckPacketPtr& packet) {
+    velodyne_puck_msgs::VelodynePuckPacketPtr &packet) {
   double time1 = ros::Time::now().toSec();
 
   struct pollfd fds[1];
@@ -169,7 +170,7 @@ int VelodynePuckDriver::getPacket(
     // Receive packets that should now be available from the
     // socket using a blocking read.
     ssize_t nbytes = recvfrom(socket_id, &packet->data[0], PACKET_SIZE, 0,
-                              (sockaddr*)&sender_address, &sender_address_len);
+                              (sockaddr *)&sender_address, &sender_address_len);
 
     if (nbytes < 0) {
       if (errno != EWOULDBLOCK) {
