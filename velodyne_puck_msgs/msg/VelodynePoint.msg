@@ -3,11 +3,11 @@ float32 time
 
 # Converted distance in the sensor frame
 # TODO: remove these
-float32 x
-float32 y
-float32 z
+float64 x
+float64 y
+float64 z
 
 # Raw measurement from velodyne puck
-float32 azimuth
-float32 distance
-float32 intensity
+float64 azimuth
+float64 distance
+float64 intensity

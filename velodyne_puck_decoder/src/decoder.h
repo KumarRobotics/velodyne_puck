@@ -48,15 +48,15 @@ class VelodynePuckDecoder {
     uint8_t bytes[2];
   };
 
-  struct RawBlock {
-    uint16_t header;    ///< UPPER_BANK or LOWER_BANK
-    uint16_t rotation;  ///< 0-35999, divide by 100 to get degrees
-    uint8_t data[BLOCK_DATA_SIZE];
+  struct DataBlock {
+    uint16_t header;    /// UPPER_BANK or LOWER_BANK
+    uint16_t rotation;  /// 0-35999, divide by 100 to get degrees
+    uint8_t data[kPointBytesPerBlock];  /// 96
   };
 
-  struct RawPacket {
-    RawBlock blocks[BLOCKS_PER_PACKET];
-    uint32_t time_stamp;
+  struct Packet {
+    DataBlock blocks[kBlocksPerPacket];
+    uint32_t stamp;
     uint8_t factory[2];
     // uint16_t revolution;
     // uint8_t status[PACKET_STATUS_SIZE];
@@ -75,8 +75,8 @@ class VelodynePuckDecoder {
   bool createRosIO();
 
   // Callback function for a single velodyne packet.
-  bool checkPacketValidity(const RawPacket* packet);
-  void decodePacket(const RawPacket* packet);
+  bool checkPacketValidity(const Packet* packet);
+  void decodePacket(const Packet* packet);
   void packetCallback(const VelodynePacketConstPtr& packet_msg);
 
   // Publish data
@@ -100,7 +100,7 @@ class VelodynePuckDecoder {
   double sweep_start_time{0.0};
   double packet_start_time{0.0};
 
-  Firing firings[FIRINGS_PER_PACKET];
+  Firing firings[kFiringsPerPacket];
 
   // ROS related parameters
   ros::NodeHandle nh;
