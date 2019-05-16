@@ -6,6 +6,7 @@
     ROS device driver for Velodyne PUCK VLP-16.
   </description>
   <maintainer email="sunke.polyu@gmail.com">Ke Sun</maintainer>
+  <maintainer email="quchao@seas.upenn.edu">Chao Qu</maintainer>
   <author> Jack O'Quin</author>
   <author>Patrick Beeson</author>
   <author>Michael Quinlan</author>

@@ -13,7 +13,7 @@ The package is tested on Ubuntu 14.04 with ROS indigo.
 ## License
 This driver is developed based on [ROS velodyne driver](http://wiki.ros.org/velodyne_driver), which originally has the BSD license. The COPYING file is kept in this package. However, the changed files have the GNU General Public License V3.0.
 
-## Compling
+## Compilation
 This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compling a catkin package will work.
 
 ```

@@ -6,6 +6,7 @@
     ROS message definitions for Velodyne 3D LIDARs.
   </description>
   <maintainer email="sunke.polyu@gmail.com">Ke Sun</maintainer>
+  <maintainer email="quchao@seas.upenn.edu">Chao Qu</maintainer>
   <author>Jack O'Quin</author>
   <author>Ke Sun</author>
   <license>GNU General Public License V3.0</license>
