@@ -1,0 +1,15 @@
+<launch>
+
+  <arg name="device_ip" default="172.16.107.201"/>
+  <arg name="frame_id" default="velodyne"/>
+
+  <include file="$(find velodyne_puck_driver)/launch/driver_nodelet.launch">
+    <arg name="device_ip" value="$(arg device_ip)"/>
+    <arg name="frame_id" value="$(arg frame_id)"/>
+  </include>
+
+  <include file="$(find velodyne_puck_decoder)/launch/decoder_nodelet.launch">
+    <arg name="frame_id" value="$(arg frame_id)"/>
+  </include>
+
+</launch>

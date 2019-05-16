@@ -15,23 +15,21 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
+#include "driver.h"
 
-#include "velodyne_puck_decoder_nodelet.h"
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "velodyne_puck_driver_node");
+  ros::NodeHandle node;
+  ros::NodeHandle private_nh("~");
 
-namespace velodyne_puck_decoder {
+  // start the driver
+  velodyne_puck_driver::VelodynePuckDriver driver(node, private_nh);
 
-void VelodynePuckDecoderNodelet::onInit() {
-  decoder.reset(
-      new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
-
-  if (!decoder->initialize()) {
-    ROS_ERROR("Cannot initialize the velodyne puck decoder...");
-    return;
+  // loop until shut down or end of file
+  while (ros::ok() && driver.polling()) {
+    ros::spinOnce();
   }
+
+  return 0;
 }
-
-}  // end namespace velodyne_puck_decoder
-
-PLUGINLIB_EXPORT_CLASS(velodyne_puck_decoder::VelodynePuckDecoderNodelet,
-                       nodelet::Nodelet);

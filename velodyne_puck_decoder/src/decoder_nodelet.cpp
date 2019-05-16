@@ -14,23 +14,24 @@
  * You should have received a copy of the GNU General Public License
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma once
 
-#include <nodelet/nodelet.h>
-#include <ros/ros.h>
+#include <pluginlib/class_list_macros.h>
 
-#include "velodyne_puck_decoder.h"
+#include "decoder_nodelet.h"
 
 namespace velodyne_puck_decoder {
 
-class VelodynePuckDecoderNodelet : public nodelet::Nodelet {
- public:
-  VelodynePuckDecoderNodelet() {}
-  ~VelodynePuckDecoderNodelet() {}
+void VelodynePuckDecoderNodelet::onInit() {
+  decoder.reset(
+      new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
 
- private:
-  virtual void onInit();
-  VelodynePuckDecoder::Ptr decoder;
-};
+  if (!decoder->initialize()) {
+    ROS_ERROR("Cannot initialize the velodyne puck decoder...");
+    return;
+  }
+}
 
-}  //  namespace velodyne_puck_decoder
+}  // end namespace velodyne_puck_decoder
+
+PLUGINLIB_EXPORT_CLASS(velodyne_puck_decoder::VelodynePuckDecoderNodelet,
+                       nodelet::Nodelet);

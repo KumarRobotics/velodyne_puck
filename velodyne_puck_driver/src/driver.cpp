@@ -25,7 +25,7 @@
 #include <cmath>
 
 #include "constants.h"
-#include "velodyne_puck_driver.h"
+#include "driver.h"
 
 namespace velodyne_puck_driver {
 

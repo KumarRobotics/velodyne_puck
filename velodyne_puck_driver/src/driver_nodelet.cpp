@@ -17,7 +17,7 @@
 
 #include <pluginlib/class_list_macros.h>
 
-#include "velodyne_puck_driver_nodelet.h"
+#include "driver_nodelet.h"
 
 namespace velodyne_puck_driver {
 

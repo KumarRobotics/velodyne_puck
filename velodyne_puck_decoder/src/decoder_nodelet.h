@@ -14,22 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
+#pragma once
 
+#include <nodelet/nodelet.h>
 #include <ros/ros.h>
-#include "velodyne_puck_driver.h"
 
-int main(int argc, char** argv) {
-  ros::init(argc, argv, "velodyne_puck_driver_node");
-  ros::NodeHandle node;
-  ros::NodeHandle private_nh("~");
+#include "decoder.h"
 
-  // start the driver
-  velodyne_puck_driver::VelodynePuckDriver driver(node, private_nh);
+namespace velodyne_puck_decoder {
 
-  // loop until shut down or end of file
-  while (ros::ok() && driver.polling()) {
-    ros::spinOnce();
-  }
+class VelodynePuckDecoderNodelet : public nodelet::Nodelet {
+ public:
+  VelodynePuckDecoderNodelet() {}
+  ~VelodynePuckDecoderNodelet() {}
 
-  return 0;
-}
+ private:
+  virtual void onInit();
+  VelodynePuckDecoder::Ptr decoder;
+};
+
+}  //  namespace velodyne_puck_decoder

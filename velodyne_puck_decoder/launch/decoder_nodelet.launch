@@ -1,13 +1,6 @@
 <launch>
-
-  <arg name="device_ip" default="172.16.107.201"/>
   <arg name="frame_id" default="velodyne"/>
   <arg name="publish_cloud" default="true"/>
-
-  <include file="$(find velodyne_puck_driver)/launch/velodyne_puck_driver_nodelet.launch">
-    <arg name="device_ip" value="$(arg device_ip)"/>
-    <arg name="frame_id" value="$(arg frame_id)"/>
-  </include>
 
   <group ns="$(arg frame_id)">
     <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet" args="load velodyne_puck_decoder/VelodynePuckDecoderNodelet

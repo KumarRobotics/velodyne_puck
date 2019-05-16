@@ -15,13 +15,12 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "velodyne_puck_decoder.h"
-
-#include <numeric>
+#include "decoder.h"
 
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
+#include <sensor_msgs/PointCloud2.h>
 
 namespace velodyne_puck_decoder {
 
@@ -30,12 +29,19 @@ using CloudT = pcl::PointCloud<PointT>;
 using velodyne_puck_msgs::VelodynePacket;
 using velodyne_puck_msgs::VelodyneScan;
 
+/// Compute total points in a sweep
 size_t TotalPoints(const VelodyneSweep& sweep) {
   size_t n = 0;
-  for (const auto& scan : sweep.scans) {
+  for (const VelodyneScan& scan : sweep.scans) {
     n += scan.points.size();
   }
   return n;
+}
+
+/// p51 8.3.1
+double AzimuthResolutionDegree(int rpm) {
+  ROS_ASSERT_MSG(rpm % 60 == 0, "rpm must be divisible by 60");
+  return rpm / 60.0 * 360.0 * kFiringCycleUs / 1e6;
 }
 
 VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
@@ -43,11 +49,16 @@ VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
     : nh(n), pnh(pn), sweep_data(new VelodyneSweep()) {}
 
 bool VelodynePuckDecoder::loadParameters() {
-  pnh.param<double>("min_range", min_range, 0.5);
-  pnh.param<double>("max_range", max_range, 100.0);
+  pnh.param("min_range", min_range, 0.5);
+  pnh.param("max_range", max_range, 100.0);
   ROS_INFO("min_range: %f, max_range: %f", min_range, max_range);
 
-  pnh.param<bool>("publish_cloud", publish_cloud, true);
+  int rpm;
+  pnh.param("rpm", rpm, 300);
+  ROS_INFO("azimuth resolution %f degree for rpm %d",
+           AzimuthResolutionDegree(rpm), rpm);
+
+  pnh.param("publish_cloud", publish_cloud, true);
   pnh.param<std::string>("frame_id", frame_id, "velodyne");
   return true;
 }
@@ -365,12 +376,12 @@ void VelodynePuckDecoder::publishCloud(const VelodyneSweep& sweep_msg) {
     if (scan.points.size() <= 2) continue;
     for (size_t j = 1; j < scan.points.size() - 1; ++j) {
       // TODO: compute here instead of saving them in scan, waste space
-      const auto& scan_point = scan.points[j];
+      const auto& vlp_point = scan.points[j];
       pcl::PointXYZI point;
-      point.x = scan_point.x;
-      point.y = scan_point.y;
-      point.z = scan_point.z;
-      point.intensity = scan_point.intensity;
+      point.x = vlp_point.x;
+      point.y = vlp_point.y;
+      point.z = vlp_point.z;
+      point.intensity = vlp_point.intensity;
       // cloud->push_back does extra work, so we don't use it
       cloud->points.push_back(point);
     }
@@ -378,6 +389,7 @@ void VelodynePuckDecoder::publishCloud(const VelodyneSweep& sweep_msg) {
 
   cloud->width = cloud->size();
   cloud_pub.publish(cloud);
-  ROS_INFO("Total cloud %zu", cloud->size());
+  ROS_DEBUG("Total cloud %zu", cloud->size());
 }
+
 }  //  namespace velodyne_puck_decoder
