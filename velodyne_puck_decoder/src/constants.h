@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 namespace velodyne_puck_decoder {
 
@@ -11,10 +12,10 @@ static constexpr double deg2rad(double deg) { return deg * M_PI / 180.0; }
 static constexpr double rad2deg(double rad) { return rad * 180.0 / M_PI; }
 
 // Raw Velodyne packet constants and structures.
-static const int SIZE_BLOCK = 100;
-static const int RAW_SCAN_SIZE = 3;
-static const int SCANS_PER_BLOCK = 32;
-static const int BLOCK_DATA_SIZE = (SCANS_PER_BLOCK * RAW_SCAN_SIZE);
+static constexpr int SIZE_BLOCK = 100;
+static constexpr int RAW_SCAN_SIZE = 3;
+static constexpr int SCANS_PER_BLOCK = 32;
+static constexpr int BLOCK_DATA_SIZE = (SCANS_PER_BLOCK * RAW_SCAN_SIZE);
 
 // According to Bruce Hall DISTANCE_MAX is 65.0, but we noticed
 // valid packets with readings up to 130.0.
@@ -32,7 +33,7 @@ static const int FIRINGS_PER_BLOCK = 2;
 static const int SCANS_PER_FIRING = 16;
 static const double BLOCK_TDURATION = 110.592;  // [µs]
 static const double DSR_TOFFSET = 2.304;        // [µs]
-static const double FIRING_TOFFSET = 55.296;    // [µs]
+static const double kFiringCycleUs = 55.296;    // [µs]
 
 static const int PACKET_SIZE = 1206;
 static const int BLOCKS_PER_PACKET = 12;
@@ -70,5 +71,12 @@ static constexpr double sin_scan_altitude[16] = {
     std::sin(scan_altitude[12]), std::sin(scan_altitude[13]),
     std::sin(scan_altitude[14]), std::sin(scan_altitude[15]),
 };
+
+inline constexpr double rawAzimuthToDouble(uint16_t raw_azimuth) {
+  // According to the user manual,
+  // azimuth = raw_azimuth / 100.0;
+  //    return static_cast<double>(raw_azimuth) / 100.0 * DEG_TO_RAD;
+  return deg2rad(static_cast<double>(raw_azimuth) / 100.0);
+}
 
 }  // namespace velodyne_puck_decoder

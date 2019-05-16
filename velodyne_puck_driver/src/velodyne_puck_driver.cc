@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <cmath>
 
+#include "constants.h"
 #include "velodyne_puck_driver.h"
 
 namespace velodyne_puck_driver {
@@ -56,7 +57,8 @@ bool VelodynePuckDriver::createRosIO() {
   // Each packet contains 12 blocks. And each block
   // contains 32 points. Together provides the
   // packet rate.
-  const double diag_freq = 300000.0 / (12 * 32);
+  //  const double diag_freq = 300000.0 / (12 * 32);
+  const double diag_freq = kPacketsPerSecond;
   diag_max_freq = diag_freq;
   diag_min_freq = diag_freq;
   ROS_INFO("expected frequency: %.3f (Hz)", diag_freq);
@@ -118,7 +120,7 @@ bool VelodynePuckDriver::initialize() {
   return true;
 }
 
-int VelodynePuckDriver::getPacket(VelodynePuckPacket &packet) {
+int VelodynePuckDriver::getPacket(VelodynePuckPacket &packet) const {
   const auto time1 = ros::Time::now().toSec();
 
   struct pollfd fds[1];

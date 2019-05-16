@@ -26,6 +26,8 @@
 
 namespace velodyne_puck_decoder {
 
+using velodyne_puck_msgs::VelodynePuckPacketConstPtr;
+
 /**
  * @brief The VelodynePuckDecoder class
  */
@@ -34,12 +36,11 @@ class VelodynePuckDecoder {
   VelodynePuckDecoder(const ros::NodeHandle& n, const ros::NodeHandle& pn);
   VelodynePuckDecoder(const VelodynePuckDecoder&) = delete;
   VelodynePuckDecoder operator=(const VelodynePuckDecoder&) = delete;
-  ~VelodynePuckDecoder() {}
-
-  bool initialize();
 
   using Ptr = boost::shared_ptr<VelodynePuckDecoder>;
   using ConstPtr = boost::shared_ptr<const VelodynePuckDecoder>;
+
+  bool initialize();
 
  private:
   union TwoBytes {
@@ -76,22 +77,14 @@ class VelodynePuckDecoder {
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const RawPacket* packet);
   void decodePacket(const RawPacket* packet);
-  void packetCallback(
-      const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg);
+  void packetCallback(const VelodynePuckPacketConstPtr& msg);
 
   // Publish data
   void publishPointCloud();
 
   // Check if a point is in the required range.
-  bool isPointInRange(const double& distance) {
-    return (distance >= min_range && distance <= max_range);
-  }
-
-  double rawAzimuthToDouble(const uint16_t& raw_azimuth) {
-    // According to the user manual,
-    // azimuth = raw_azimuth / 100.0;
-    //    return static_cast<double>(raw_azimuth) / 100.0 * DEG_TO_RAD;
-    return deg2rad(static_cast<double>(raw_azimuth) / 100.0);
+  bool isPointInRange(double distance) const {
+    return distance >= min_range && distance <= max_range;
   }
 
   // Configuration parameters
@@ -114,6 +107,7 @@ class VelodynePuckDecoder {
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
   std::string frame_id;
+
   ros::Subscriber packet_sub;
   ros::Publisher sweep_pub;
   ros::Publisher cloud_pub;

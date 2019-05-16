@@ -174,7 +174,7 @@ void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
         // Azimuth
         firings[fir_idx].azimuth[scan_fir_idx] =
             firings[fir_idx].firing_azimuth +
-            (scan_fir_idx * DSR_TOFFSET / FIRING_TOFFSET) * azimuth_diff;
+            (scan_fir_idx * DSR_TOFFSET / kFiringCycleUs) * azimuth_diff;
 
         // Distance
         TwoBytes raw_distance;
@@ -192,7 +192,7 @@ void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
 }
 
 void VelodynePuckDecoder::packetCallback(
-    const velodyne_puck_msgs::VelodynePuckPacketConstPtr& msg) {
+    const VelodynePuckPacketConstPtr& msg) {
   // Convert the msg to the raw packet type.
   const RawPacket* raw_packet = (const RawPacket*)(&(msg->data[0]));
 
@@ -229,7 +229,7 @@ void VelodynePuckDecoder::packetCallback(
       start_fir_idx = new_sweep_start;
       end_fir_idx = FIRINGS_PER_PACKET;
       sweep_start_time = msg->stamp.toSec() +
-                         FIRING_TOFFSET * (end_fir_idx - start_fir_idx) * 1e-6;
+                         kFiringCycleUs * (end_fir_idx - start_fir_idx) * 1e-6;
     }
   }
 
@@ -265,7 +265,7 @@ void VelodynePuckDecoder::packetCallback(
 
       // Compute the time of the point
       double time =
-          packet_start_time + FIRING_TOFFSET * fir_idx + DSR_TOFFSET * scan_idx;
+          packet_start_time + kFiringCycleUs * fir_idx + DSR_TOFFSET * scan_idx;
 
       // Remap the index of the scan
       int remapped_scan_idx =
@@ -287,7 +287,7 @@ void VelodynePuckDecoder::packetCallback(
     }
   }
 
-  packet_start_time += FIRING_TOFFSET * (end_fir_idx - start_fir_idx);
+  packet_start_time += kFiringCycleUs * (end_fir_idx - start_fir_idx);
 
   // A new sweep begins
   if (end_fir_idx != FIRINGS_PER_PACKET) {
@@ -300,7 +300,7 @@ void VelodynePuckDecoder::packetCallback(
 
     // Prepare the next revolution
     sweep_start_time = msg->stamp.toSec() +
-                       FIRING_TOFFSET * (end_fir_idx - start_fir_idx) * 1e-6;
+                       kFiringCycleUs * (end_fir_idx - start_fir_idx) * 1e-6;
     packet_start_time = 0.0;
     last_azimuth = firings[FIRINGS_PER_PACKET - 1].firing_azimuth;
 
@@ -341,7 +341,7 @@ void VelodynePuckDecoder::packetCallback(
 
         // Compute the time of the point
         double time = packet_start_time +
-                      FIRING_TOFFSET * (fir_idx - start_fir_idx) +
+                      kFiringCycleUs * (fir_idx - start_fir_idx) +
                       DSR_TOFFSET * scan_idx;
 
         // Remap the index of the scan
@@ -364,7 +364,7 @@ void VelodynePuckDecoder::packetCallback(
       }
     }
 
-    packet_start_time += FIRING_TOFFSET * (end_fir_idx - start_fir_idx);
+    packet_start_time += kFiringCycleUs * (end_fir_idx - start_fir_idx);
   }
 }
 

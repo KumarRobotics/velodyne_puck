@@ -47,7 +47,7 @@ class VelodynePuckDriver {
   bool loadParameters();
   bool createRosIO();
   bool openUDPPort();
-  int getPacket(VelodynePuckPacket& packet);
+  int getPacket(VelodynePuckPacket& packet) const;
 
   // Ethernet relate variables
   std::string device_ip_string;

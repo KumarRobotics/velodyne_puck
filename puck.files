@@ -29,6 +29,7 @@ velodyne_puck_driver/include/velodyne_puck_driver/velodyne_puck_driver_nodelet.h
 velodyne_puck_driver/launch/velodyne_puck_driver_nodelet.launch
 velodyne_puck_driver/nodelet_velodyne_puck.xml
 velodyne_puck_driver/package.xml
+velodyne_puck_driver/src/constants.h
 velodyne_puck_driver/src/velodyne_puck_driver.cc
 velodyne_puck_driver/src/velodyne_puck_driver.cc
 velodyne_puck_driver/src/velodyne_puck_driver.h
