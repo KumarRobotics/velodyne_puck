@@ -6,10 +6,10 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs)
 add_message_files(DIRECTORY
                   msg
                   FILES
-                  VelodynePuckPacket.msg
-                  VelodynePuckPoint.msg
-                  VelodynePuckScan.msg
-                  VelodynePuckSweep.msg)
+                  VelodynePacket.msg
+                  VelodynePoint.msg
+                  VelodyneScan.msg
+                  VelodyneSweep.msg)
 generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(CATKIN_DEPENDS message_runtime std_msgs)

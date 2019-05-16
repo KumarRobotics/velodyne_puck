@@ -17,16 +17,16 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
 
-#include <velodyne_puck_msgs/VelodynePuckPacket.h>
-#include <velodyne_puck_msgs/VelodynePuckSweep.h>
+#include <velodyne_puck_msgs/VelodynePacket.h>
+#include <velodyne_puck_msgs/VelodyneSweep.h>
 
 #include "constants.h"
 
 namespace velodyne_puck_decoder {
 
-using velodyne_puck_msgs::VelodynePuckPacketConstPtr;
+using velodyne_puck_msgs::VelodynePacketConstPtr;
+using velodyne_puck_msgs::VelodyneSweep;
 
 /**
  * @brief The VelodynePuckDecoder class
@@ -65,9 +65,9 @@ class VelodynePuckDecoder {
   struct Firing {
     // Azimuth associated with the first shot within this firing.
     double firing_azimuth;
-    double azimuth[SCANS_PER_FIRING];
-    double distance[SCANS_PER_FIRING];
-    double intensity[SCANS_PER_FIRING];
+    double azimuth[kFiringsPerCycle];
+    double distance[kFiringsPerCycle];
+    double intensity[kFiringsPerCycle];
   };
 
   // Intialization sequence
@@ -77,10 +77,10 @@ class VelodynePuckDecoder {
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const RawPacket* packet);
   void decodePacket(const RawPacket* packet);
-  void packetCallback(const VelodynePuckPacketConstPtr& msg);
+  void packetCallback(const VelodynePacketConstPtr& packet_msg);
 
   // Publish data
-  void publishPointCloud();
+  void publishCloud(const VelodyneSweep& sweep_msg);
 
   // Check if a point is in the required range.
   bool isPointInRange(double distance) const {
@@ -90,7 +90,6 @@ class VelodynePuckDecoder {
   // Configuration parameters
   double min_range;
   double max_range;
-  double frequency;
   bool publish_cloud{true};
 
   double cos_azimuth_table[6300];
@@ -112,7 +111,7 @@ class VelodynePuckDecoder {
   ros::Publisher sweep_pub;
   ros::Publisher cloud_pub;
 
-  velodyne_puck_msgs::VelodynePuckSweepPtr sweep_data;
+  velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 };
 
 }  // end namespace velodyne_puck_decoder

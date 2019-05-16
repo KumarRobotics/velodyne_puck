@@ -30,7 +30,7 @@
 namespace velodyne_puck_driver {
 
 static constexpr uint16_t UDP_PORT_NUMBER = 2368;
-static constexpr size_t kPacketSize = sizeof(VelodynePuckPacket().data);
+static constexpr size_t kPacketSize = sizeof(VelodynePacket().data);
 static constexpr int kError = -1;
 
 VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
@@ -70,7 +70,7 @@ bool VelodynePuckDriver::createRosIO() {
       TimeStampStatusParam()));
 
   // Output
-  packet_pub = pnh.advertise<VelodynePuckPacket>("packet", 10);
+  packet_pub = pnh.advertise<VelodynePacket>("packet", 10);
 
   return true;
 }
@@ -120,7 +120,7 @@ bool VelodynePuckDriver::initialize() {
   return true;
 }
 
-int VelodynePuckDriver::getPacket(VelodynePuckPacket &packet) const {
+int VelodynePuckDriver::getPacket(VelodynePacket &packet) const {
   const auto time1 = ros::Time::now().toSec();
 
   struct pollfd fds[1];
@@ -207,7 +207,7 @@ int VelodynePuckDriver::getPacket(VelodynePuckPacket &packet) const {
 
 bool VelodynePuckDriver::polling() {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
-  auto packet = boost::make_shared<VelodynePuckPacket>();
+  auto packet = boost::make_shared<VelodynePacket>();
   //      packet(
   //      new velodyne_puck_msgs::VelodynePuckPacket());
 

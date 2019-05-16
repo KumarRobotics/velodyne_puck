@@ -1,7 +1,6 @@
 <launch>
 
   <arg name="device_ip" default="172.16.107.201"/>
-  <arg name="frequency" value="5.0"/>
   <arg name="frame_id" default="velodyne"/>
   <arg name="publish_cloud" default="true"/>
 
@@ -17,7 +16,6 @@
 
       <param name="min_range" value="0.3"/>
       <param name="max_range" value="100.0"/>
-      <param name="frequency" type="double" value="$(arg frequency)"/>
       <param name="publish_cloud" type="bool" value="$(arg publish_cloud)"/>
 
       <remap from="~cloud" to="cloud"/>

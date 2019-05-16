@@ -17,35 +17,45 @@
 
 #include "velodyne_puck_decoder.h"
 
+#include <numeric>
+
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 
-using namespace std;
-
 namespace velodyne_puck_decoder {
+
+using PointT = pcl::PointXYZI;
+using CloudT = pcl::PointCloud<PointT>;
+using velodyne_puck_msgs::VelodynePacket;
+using velodyne_puck_msgs::VelodyneScan;
+
+size_t TotalPoints(const VelodyneSweep& sweep) {
+  size_t n = 0;
+  for (const auto& scan : sweep.scans) {
+    n += scan.points.size();
+  }
+  return n;
+}
 
 VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
                                          const ros::NodeHandle& pn)
-    : nh(n), pnh(pn), sweep_data(new velodyne_puck_msgs::VelodynePuckSweep()) {}
+    : nh(n), pnh(pn), sweep_data(new VelodyneSweep()) {}
 
 bool VelodynePuckDecoder::loadParameters() {
   pnh.param<double>("min_range", min_range, 0.5);
   pnh.param<double>("max_range", max_range, 100.0);
   ROS_INFO("min_range: %f, max_range: %f", min_range, max_range);
 
-  pnh.param<double>("frequency", frequency, 10.0);
-  ROS_INFO("frequency: %f", frequency);
-
   pnh.param<bool>("publish_cloud", publish_cloud, true);
-  pnh.param<string>("frame_id", frame_id, "velodyne");
+  pnh.param<std::string>("frame_id", frame_id, "velodyne");
   return true;
 }
 
 bool VelodynePuckDecoder::createRosIO() {
-  packet_sub = pnh.subscribe<velodyne_puck_msgs::VelodynePuckPacket>(
+  packet_sub = pnh.subscribe<VelodynePacket>(
       "packet", 100, &VelodynePuckDecoder::packetCallback, this);
-  sweep_pub = pnh.advertise<velodyne_puck_msgs::VelodynePuckSweep>("sweep", 10);
+  sweep_pub = pnh.advertise<VelodyneSweep>("sweep", 10);
   cloud_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
   return true;
 }
@@ -65,7 +75,7 @@ bool VelodynePuckDecoder::initialize() {
   for (size_t scan_idx = 0; scan_idx < 16; ++scan_idx) {
     size_t remapped_scan_idx =
         scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
-    sweep_data->scans[remapped_scan_idx].altitude = scan_altitude[scan_idx];
+    sweep_data->scans[remapped_scan_idx].elevation = scan_elevation[scan_idx];
   }
 
   // Create the sin and cos table for different azimuth values.
@@ -87,37 +97,6 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
     }
   }
   return true;
-}
-
-void VelodynePuckDecoder::publishPointCloud() {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr point_cloud(
-      new pcl::PointCloud<pcl::PointXYZI>());
-  point_cloud->header.stamp = pcl_conversions::toPCL(sweep_data->header).stamp;
-  point_cloud->header.frame_id = frame_id;
-  point_cloud->height = 1;
-
-  for (size_t i = 0; i < 16; ++i) {
-    const velodyne_puck_msgs::VelodynePuckScan& scan = sweep_data->scans[i];
-    // The first and last point in each scan is ignored, which
-    // seems to be corrupted based on the received data.
-    // TODO: The two end points should be removed directly
-    //    in the scans.
-    if (scan.points.size() == 0) continue;
-    for (size_t j = 1; j < scan.points.size() - 1; ++j) {
-      pcl::PointXYZI point;
-      point.x = scan.points[j].x;
-      point.y = scan.points[j].y;
-      point.z = scan.points[j].z;
-      point.intensity = scan.points[j].intensity;
-      point_cloud->points.push_back(point);
-      ++point_cloud->width;
-    }
-  }
-
-  cloud_pub.publish(point_cloud);
-  // sweep_pub.publish(sweep_data);
-
-  return;
 }
 
 void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
@@ -166,10 +145,10 @@ void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
         azimuth_diff = firings[fir_idx].firing_azimuth -
                        firings[fir_idx - 1].firing_azimuth;
 
-      for (size_t scan_fir_idx = 0; scan_fir_idx < SCANS_PER_FIRING;
+      for (size_t scan_fir_idx = 0; scan_fir_idx < kFiringsPerCycle;
            ++scan_fir_idx) {
         size_t byte_idx =
-            RAW_SCAN_SIZE * (SCANS_PER_FIRING * blk_fir_idx + scan_fir_idx);
+            RAW_SCAN_SIZE * (kFiringsPerCycle * blk_fir_idx + scan_fir_idx);
 
         // Azimuth
         firings[fir_idx].azimuth[scan_fir_idx] =
@@ -191,8 +170,7 @@ void VelodynePuckDecoder::decodePacket(const RawPacket* packet) {
   }
 }
 
-void VelodynePuckDecoder::packetCallback(
-    const VelodynePuckPacketConstPtr& msg) {
+void VelodynePuckDecoder::packetCallback(const VelodynePacketConstPtr& msg) {
   // Convert the msg to the raw packet type.
   const RawPacket* raw_packet = (const RawPacket*)(&(msg->data[0]));
 
@@ -234,7 +212,7 @@ void VelodynePuckDecoder::packetCallback(
   }
 
   for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
-    for (size_t scan_idx = 0; scan_idx < SCANS_PER_FIRING; ++scan_idx) {
+    for (size_t scan_idx = 0; scan_idx < kFiringsPerCycle; ++scan_idx) {
       // Check if the point is valid.
       if (!isPointInRange(firings[fir_idx].distance[scan_idx])) continue;
 
@@ -253,11 +231,11 @@ void VelodynePuckDecoder::packetCallback(
       //  sin_scan_altitude[scan_idx];
 
       double x = firings[fir_idx].distance[scan_idx] *
-                 cos_scan_altitude[scan_idx] * sin_azimuth;
+                 cos_scan_elevation[scan_idx] * sin_azimuth;
       double y = firings[fir_idx].distance[scan_idx] *
-                 cos_scan_altitude[scan_idx] * cos_azimuth;
+                 cos_scan_elevation[scan_idx] * cos_azimuth;
       double z =
-          firings[fir_idx].distance[scan_idx] * sin_scan_altitude[scan_idx];
+          firings[fir_idx].distance[scan_idx] * sin_scan_elevation[scan_idx];
 
       double x_coord = y;
       double y_coord = -x;
@@ -271,8 +249,8 @@ void VelodynePuckDecoder::packetCallback(
       int remapped_scan_idx =
           scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
       sweep_data->scans[remapped_scan_idx].points.push_back(
-          velodyne_puck_msgs::VelodynePuckPoint());
-      velodyne_puck_msgs::VelodynePuckPoint& new_point =
+          velodyne_puck_msgs::VelodynePoint());
+      velodyne_puck_msgs::VelodynePoint& new_point =
           sweep_data->scans[remapped_scan_idx]
               .points[sweep_data->scans[remapped_scan_idx].points.size() - 1];
 
@@ -294,9 +272,13 @@ void VelodynePuckDecoder::packetCallback(
     // Publish the last revolution
     sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
-    if (publish_cloud) publishPointCloud();
-    sweep_data = velodyne_puck_msgs::VelodynePuckSweepPtr(
-        new velodyne_puck_msgs::VelodynePuckSweep());
+
+    if (publish_cloud) {
+      publishCloud(*sweep_data);
+    }
+
+    sweep_data = velodyne_puck_msgs::VelodyneSweepPtr(
+        new velodyne_puck_msgs::VelodyneSweep());
 
     // Prepare the next revolution
     sweep_start_time = msg->stamp.toSec() +
@@ -308,7 +290,7 @@ void VelodynePuckDecoder::packetCallback(
     end_fir_idx = FIRINGS_PER_PACKET;
 
     for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
-      for (size_t scan_idx = 0; scan_idx < SCANS_PER_FIRING; ++scan_idx) {
+      for (size_t scan_idx = 0; scan_idx < kFiringsPerCycle; ++scan_idx) {
         // Check if the point is valid.
         if (!isPointInRange(firings[fir_idx].distance[scan_idx])) continue;
 
@@ -329,11 +311,11 @@ void VelodynePuckDecoder::packetCallback(
         //  sin_scan_altitude[scan_idx];
 
         double x = firings[fir_idx].distance[scan_idx] *
-                   cos_scan_altitude[scan_idx] * sin_azimuth;
+                   cos_scan_elevation[scan_idx] * sin_azimuth;
         double y = firings[fir_idx].distance[scan_idx] *
-                   cos_scan_altitude[scan_idx] * cos_azimuth;
+                   cos_scan_elevation[scan_idx] * cos_azimuth;
         double z =
-            firings[fir_idx].distance[scan_idx] * sin_scan_altitude[scan_idx];
+            firings[fir_idx].distance[scan_idx] * sin_scan_elevation[scan_idx];
 
         double x_coord = y;
         double y_coord = -x;
@@ -348,8 +330,8 @@ void VelodynePuckDecoder::packetCallback(
         int remapped_scan_idx =
             scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
         sweep_data->scans[remapped_scan_idx].points.push_back(
-            velodyne_puck_msgs::VelodynePuckPoint());
-        velodyne_puck_msgs::VelodynePuckPoint& new_point =
+            velodyne_puck_msgs::VelodynePoint());
+        velodyne_puck_msgs::VelodynePoint& new_point =
             sweep_data->scans[remapped_scan_idx]
                 .points[sweep_data->scans[remapped_scan_idx].points.size() - 1];
 
@@ -368,4 +350,34 @@ void VelodynePuckDecoder::packetCallback(
   }
 }
 
-}  // end namespace velodyne_puck_decoder
+void VelodynePuckDecoder::publishCloud(const VelodyneSweep& sweep_msg) {
+  CloudT::Ptr cloud = boost::make_shared<CloudT>();
+
+  cloud->header = pcl_conversions::toPCL(sweep_msg.header);
+  cloud->header.frame_id = frame_id;
+  cloud->height = 1;
+  cloud->reserve(TotalPoints(sweep_msg));
+
+  for (const VelodyneScan& scan : sweep_msg.scans) {
+    // The first and last point in each scan is ignored, which
+    // seems to be corrupted based on the received data.
+    // TODO: The two end points should be removed directly in the scans.
+    if (scan.points.size() <= 2) continue;
+    for (size_t j = 1; j < scan.points.size() - 1; ++j) {
+      // TODO: compute here instead of saving them in scan, waste space
+      const auto& scan_point = scan.points[j];
+      pcl::PointXYZI point;
+      point.x = scan_point.x;
+      point.y = scan_point.y;
+      point.z = scan_point.z;
+      point.intensity = scan_point.intensity;
+      // cloud->push_back does extra work, so we don't use it
+      cloud->points.push_back(point);
+    }
+  }
+
+  cloud->width = cloud->size();
+  cloud_pub.publish(cloud);
+  ROS_INFO("Total cloud %zu", cloud->size());
+}
+}  //  namespace velodyne_puck_decoder
