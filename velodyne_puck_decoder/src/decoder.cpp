@@ -91,7 +91,7 @@ bool VelodynePuckDecoder::checkPacketValidity(const Packet* packet) {
 
 void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
   // Compute the azimuth angle for each firing.
-  for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket; fir_idx += 2) {
+  for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
     firings[fir_idx].firing_azimuth =
         rawAzimuthToDouble(packet->blocks[blk_idx].azimuth);

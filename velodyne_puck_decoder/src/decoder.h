@@ -65,8 +65,6 @@ class VelodynePuckDecoder {
     /// block
     uint32_t stamp;
     uint8_t factory[2];
-    // uint16_t revolution;
-    // uint8_t status[PACKET_STATUS_SIZE];
   };
 
   struct Firing {
