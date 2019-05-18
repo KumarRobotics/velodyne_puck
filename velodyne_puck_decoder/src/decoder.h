@@ -40,7 +40,7 @@ class VelodynePuckDecoder {
   using Ptr = boost::shared_ptr<VelodynePuckDecoder>;
   using ConstPtr = boost::shared_ptr<const VelodynePuckDecoder>;
 
-  bool initialize();
+  bool Initialize();
 
  private:
   union TwoBytes {
@@ -48,9 +48,9 @@ class VelodynePuckDecoder {
     uint8_t bytes[2];
   };
 
-  /// The information from 2 firing sequences of 16 lasers is contained in each
-  /// data block
   struct DataBlock {
+    /// The information from 2 firing sequences of 16 lasers is contained in
+    /// each data block
     uint16_t flag;     /// UPPER_BANK or LOWER_BANK, 2 byte flag
     uint16_t azimuth;  /// 0-35999, divide by 100 to get degrees
     uint8_t data[kPointBytesPerBlock];  /// 96
@@ -60,6 +60,9 @@ class VelodynePuckDecoder {
 
   struct Packet {
     DataBlock blocks[kBlocksPerPacket];
+    /// The four-byte time stamp is a 32-bit unsigned integer marking the moment
+    /// of the first data point in the first firing sequcne of the first data
+    /// block
     uint32_t stamp;
     uint8_t factory[2];
     // uint16_t revolution;
@@ -80,11 +83,11 @@ class VelodynePuckDecoder {
 
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const Packet* packet);
-  void decodePacket(const Packet* packet);
-  void packetCallback(const VelodynePacketConstPtr& packet_msg);
+  void DecodePacket(const Packet* packet);
+  void PacketCb(const VelodynePacketConstPtr& packet_msg);
 
   // Publish data
-  void publishCloud(const VelodyneSweep& sweep_msg);
+  void PublishCloud(const VelodyneSweep& sweep_msg);
 
   // Check if a point is in the required range.
   bool isPointInRange(double distance) const {
@@ -94,7 +97,6 @@ class VelodynePuckDecoder {
   // Configuration parameters
   double min_range;
   double max_range;
-  bool publish_cloud{true};
 
   double kCosTable[kTableSize];
   double kSinTable[kTableSize];
@@ -118,4 +120,4 @@ class VelodynePuckDecoder {
   velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 };
 
-}  // end namespace velodyne_puck_decoder
+}  // namespace velodyne_puck_decoder

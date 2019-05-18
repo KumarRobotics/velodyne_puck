@@ -41,46 +41,30 @@ size_t TotalPoints(const VelodyneSweep& sweep) {
 
 VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
                                          const ros::NodeHandle& pn)
-    : nh(n), pnh(pn), sweep_data(new VelodyneSweep()) {}
-
-bool VelodynePuckDecoder::loadParameters() {
+    : nh(n), pnh(pn), sweep_data(new VelodyneSweep()) {
   pnh.param("min_range", min_range, 0.5);
   pnh.param("max_range", max_range, 100.0);
   ROS_INFO("min_range: %f, max_range: %f", min_range, max_range);
 
-  int rpm;
-  pnh.param("rpm", rpm, 300);
-  ROS_INFO("azimuth resolution %f degree for rpm %d",
-           AzimuthResolutionDegree(rpm), rpm);
+  //  int rpm;
+  //  pnh.param("rpm", rpm, 300);
+  //  ROS_INFO("azimuth resolution %f degree for rpm %d",
+  //           AzimuthResolutionDegree(rpm), rpm);
 
-  pnh.param("publish_cloud", publish_cloud, true);
   pnh.param<std::string>("frame_id", frame_id, "velodyne");
-  return true;
-}
+  ROS_INFO("Velodyne frame_id: %s", frame_id.c_str());
 
-bool VelodynePuckDecoder::createRosIO() {
   packet_sub = pnh.subscribe<VelodynePacket>(
-      "packet", 100, &VelodynePuckDecoder::packetCallback, this);
+      "packet", 100, &VelodynePuckDecoder::PacketCb, this);
+
   sweep_pub = pnh.advertise<VelodyneSweep>("sweep", 10);
   cloud_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
-  return true;
 }
 
-bool VelodynePuckDecoder::initialize() {
-  if (!loadParameters()) {
-    ROS_ERROR("Cannot load all required parameters...");
-    return false;
-  }
-
-  if (!createRosIO()) {
-    ROS_ERROR("Cannot create ROS I/O...");
-    return false;
-  }
-
+bool VelodynePuckDecoder::Initialize() {
   // Fill in the altitude for each scan.
   for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
     const auto scan_index = LaserId2Index(laser_id);
-    //        scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
     sweep_data->scans[scan_index].elevation = kScanElevations[laser_id];
   }
 
@@ -105,7 +89,7 @@ bool VelodynePuckDecoder::checkPacketValidity(const Packet* packet) {
   return true;
 }
 
-void VelodynePuckDecoder::decodePacket(const Packet* packet) {
+void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
@@ -176,8 +160,7 @@ void VelodynePuckDecoder::decodePacket(const Packet* packet) {
   }
 }
 
-void VelodynePuckDecoder::packetCallback(
-    const VelodynePacketConstPtr& packet_msg) {
+void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   // Convert the msg to the raw packet type.
   const Packet* packet = (const Packet*)(&(packet_msg->data[0]));
 
@@ -185,7 +168,7 @@ void VelodynePuckDecoder::packetCallback(
   if (!checkPacketValidity(packet)) return;
 
   // Decode the packet
-  decodePacket(packet);
+  DecodePacket(packet);
 
   // Find the start of a new revolution
   //    If there is one, new_sweep_start will be the index of the start firing,
@@ -232,13 +215,6 @@ void VelodynePuckDecoder::packetCallback(
       double cos_azimuth = kCosTable[table_idx];
       double sin_azimuth = kSinTable[table_idx];
 
-      // double x = firings[fir_idx].distance[scan_idx] *
-      //  cos_scan_altitude[scan_idx] * sin(firings[fir_idx].azimuth[scan_idx]);
-      // double y = firings[fir_idx].distance[scan_idx] *
-      //  cos_scan_altitude[scan_idx] * cos(firings[fir_idx].azimuth[scan_idx]);
-      // double z = firings[fir_idx].distance[scan_idx] *
-      //  sin_scan_altitude[scan_idx];
-
       double x = firings[fir_idx].distance[laser_id] *
                  kCosScanElevations[laser_id] * sin_azimuth;
       double y = firings[fir_idx].distance[laser_id] *
@@ -282,8 +258,8 @@ void VelodynePuckDecoder::packetCallback(
     sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
 
-    if (publish_cloud) {
-      publishCloud(*sweep_data);
+    if (cloud_pub.getNumSubscribers() > 0) {
+      PublishCloud(*sweep_data);
     }
 
     sweep_data.reset(new VelodyneSweep());
@@ -310,15 +286,6 @@ void VelodynePuckDecoder::packetCallback(
         // cout << table_idx << endl;
         double cos_azimuth = kCosTable[table_idx];
         double sin_azimuth = kSinTable[table_idx];
-
-        // double x = firings[fir_idx].distance[scan_idx] *
-        //  cos_scan_altitude[scan_idx] *
-        //  sin(firings[fir_idx].azimuth[scan_idx]);
-        // double y = firings[fir_idx].distance[scan_idx] *
-        //  cos_scan_altitude[scan_idx] *
-        //  cos(firings[fir_idx].azimuth[scan_idx]);
-        // double z = firings[fir_idx].distance[scan_idx] *
-        //  sin_scan_altitude[scan_idx];
 
         double x = firings[fir_idx].distance[laser_id] *
                    kCosScanElevations[laser_id] * sin_azimuth;
@@ -359,7 +326,7 @@ void VelodynePuckDecoder::packetCallback(
   }
 }
 
-void VelodynePuckDecoder::publishCloud(const VelodyneSweep& sweep_msg) {
+void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
   CloudT::Ptr cloud = boost::make_shared<CloudT>();
 
   cloud->header = pcl_conversions::toPCL(sweep_msg.header);

@@ -16,8 +16,8 @@ static constexpr int kPointBytesPerBlock =
 
 // According to Bruce Hall DISTANCE_MAX is 65.0, but we noticed
 // valid packets with readings up to 130.0.
-static const double kDistanceMax = 130.0;        /**< meters */
-static const double kDistanceResolution = 0.002; /**< meters */
+static const double kDistanceMax = 130.0;         // [m]
+static const double kDistanceResolution = 0.002;  // [m]
 
 /** @todo make this work for both big and little-endian machines */
 static const uint16_t UPPER_BANK = 0xeeff;

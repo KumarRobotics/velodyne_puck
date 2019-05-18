@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 
   VelodynePuckDecoder decoder(nh, pnh);
 
-  if (!decoder.initialize()) {
+  if (!decoder.Initialize()) {
     ROS_INFO("Cannot initialize the decoder...");
     return -1;
   }

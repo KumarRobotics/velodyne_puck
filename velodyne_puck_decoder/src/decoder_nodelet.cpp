@@ -25,7 +25,7 @@ void VelodynePuckDecoderNodelet::onInit() {
   decoder.reset(
       new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
 
-  if (!decoder->initialize()) {
+  if (!decoder->Initialize()) {
     ROS_ERROR("Cannot initialize the velodyne puck decoder...");
     return;
   }
