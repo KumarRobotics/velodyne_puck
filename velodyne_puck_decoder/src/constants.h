@@ -11,7 +11,8 @@ static constexpr double rad2deg(double rad) { return rad * 180.0 / M_PI; }
 // Raw Velodyne packet constants and structures.
 static constexpr int kPointBytes = 3;
 static constexpr int kPointsPerBlock = 32;
-static constexpr int kPointBytesPerBlock = (kPointBytes * kPointsPerBlock);
+static constexpr int kPointBytesPerBlock =
+    (kPointBytes * kPointsPerBlock);  // 96
 
 // According to Bruce Hall DISTANCE_MAX is 65.0, but we noticed
 // valid packets with readings up to 130.0.
@@ -70,8 +71,10 @@ static constexpr double kSinScanElevations[kFiringsPerCycle] = {
     std::sin(kScanElevations[14]), std::sin(kScanElevations[15]),
 };
 
-double kCosAzimuthTable[6300];
-double kSinAzimuthTable[6300];
+static constexpr int kTableSize = 6300;
+static constexpr double kTableFactor = 1000.0;
+// double kCosTable[kTableSize];
+// double kSinTable[kTableSize];
 
 inline constexpr double rawAzimuthToDouble(uint16_t raw_azimuth) {
   // According to the user manual,

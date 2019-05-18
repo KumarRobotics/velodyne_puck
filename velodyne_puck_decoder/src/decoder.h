@@ -48,11 +48,15 @@ class VelodynePuckDecoder {
     uint8_t bytes[2];
   };
 
+  /// The information from 2 firing sequences of 16 lasers is contained in each
+  /// data block
   struct DataBlock {
-    uint16_t header;    /// UPPER_BANK or LOWER_BANK
-    uint16_t rotation;  /// 0-35999, divide by 100 to get degrees
+    uint16_t flag;     /// UPPER_BANK or LOWER_BANK, 2 byte flag
+    uint16_t azimuth;  /// 0-35999, divide by 100 to get degrees
     uint8_t data[kPointBytesPerBlock];  /// 96
   };
+
+  static_assert(sizeof(DataBlock) == 100, "DataBlock size must be 100");
 
   struct Packet {
     DataBlock blocks[kBlocksPerPacket];
@@ -92,8 +96,8 @@ class VelodynePuckDecoder {
   double max_range;
   bool publish_cloud{true};
 
-  double cos_azimuth_table[6300];
-  double sin_azimuth_table[6300];
+  double kCosTable[kTableSize];
+  double kSinTable[kTableSize];
 
   bool is_first_sweep{true};
   double last_azimuth{0.0};

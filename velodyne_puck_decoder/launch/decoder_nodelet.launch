@@ -1,8 +1,11 @@
 <launch>
   <arg name="frame_id" default="velodyne"/>
   <arg name="publish_cloud" default="true"/>
+  <arg name="cloud" default="cloud"/>
 
   <group ns="$(arg frame_id)">
+    <!-- <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/> -->
+
     <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet" args="load velodyne_puck_decoder/VelodynePuckDecoderNodelet
     velodyne_puck_nodelet_manager" output="screen">
       <param name="frame_id" value="$(arg frame_id)"/>
@@ -11,7 +14,7 @@
       <param name="max_range" value="100.0"/>
       <param name="publish_cloud" type="bool" value="$(arg publish_cloud)"/>
 
-      <remap from="~cloud" to="cloud"/>
+      <remap from="~cloud" to="$(arg cloud)"/>
       <remap from="~packet" to="packet"/>
       <remap from="~sweep" to="sweep"/>
     </node>

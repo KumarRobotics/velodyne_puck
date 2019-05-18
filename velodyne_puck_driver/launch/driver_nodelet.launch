@@ -1,17 +1,13 @@
 <launch>
-  <arg name="frame_id" default="velodyne"/>
   <arg name="device_ip" default="192.168.1.201"/>
 
   <!-- start nodelet manager and load driver nodelet -->
-  <group ns="$(arg frame_id)">
-    <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/>
+  <!-- <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/> -->
 
-    <node pkg="nodelet" type="nodelet" name="velodyne_puck_driver_nodelet" args="load velodyne_puck_driver/VelodynePuckDriverNodelet
+  <node pkg="nodelet" type="nodelet" name="velodyne_puck_driver_nodelet" args="load velodyne_puck_driver/VelodynePuckDriverNodelet
     velodyne_puck_nodelet_manager">
-      <param name="frame_id" type="string" value="$(arg frame_id)"/>
-      <param name="device_ip" type="string" value="$(arg device_ip)"/>
-      <remap from="~packet" to="packet"/>
-    </node>
-  </group>
+    <param name="device_ip" type="string" value="$(arg device_ip)"/>
+    <remap from="~packet" to="packet"/>
+  </node>
 
 </launch>

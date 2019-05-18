@@ -36,10 +36,6 @@ void VelodynePuckDriverNodelet::onInit() {
   // start the driver
   velodyne_puck_driver.reset(
       new VelodynePuckDriver(getNodeHandle(), getPrivateNodeHandle()));
-  if (!velodyne_puck_driver->initialize()) {
-    ROS_ERROR("Cannot initialize Velodyne driver...");
-    return;
-  }
 
   // spawn device poll thread
   running = true;
@@ -51,7 +47,7 @@ void VelodynePuckDriverNodelet::onInit() {
 void VelodynePuckDriverNodelet::devicePoll() {
   while (ros::ok()) {
     // poll device until end of file
-    running = velodyne_puck_driver->polling();
+    running = velodyne_puck_driver->Poll();
     if (!running) break;
   }
   running = false;

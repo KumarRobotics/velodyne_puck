@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   velodyne_puck_driver::VelodynePuckDriver driver(node, private_nh);
 
   // loop until shut down or end of file
-  while (ros::ok() && driver.polling()) {
+  while (ros::ok() && driver.Poll()) {
     ros::spinOnce();
   }
 

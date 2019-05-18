@@ -85,20 +85,20 @@ bool VelodynePuckDecoder::initialize() {
   }
 
   // Create the sin and cos table for different azimuth values.
-  for (size_t i = 0; i < 6300; ++i) {
-    double angle = static_cast<double>(i) / 1000.0;
-    cos_azimuth_table[i] = cos(angle);
-    sin_azimuth_table[i] = sin(angle);
+  for (size_t i = 0; i < kTableSize; ++i) {
+    double angle = static_cast<double>(i) / kTableFactor;
+    kCosTable[i] = cos(angle);
+    kSinTable[i] = sin(angle);
   }
 
   return true;
 }
 
 bool VelodynePuckDecoder::checkPacketValidity(const Packet* packet) {
-  for (size_t i = 0; i < kBlocksPerPacket; ++i) {
-    if (packet->blocks[i].header != UPPER_BANK) {
-      ROS_WARN("Skip invalid VLP-16 packet: block %lu header is %x", i,
-               packet->blocks[i].header);
+  for (int i = 0; i < kBlocksPerPacket; ++i) {
+    if (packet->blocks[i].flag != UPPER_BANK) {
+      ROS_WARN("Skip invalid VLP-16 packet: block %d header is %x", i,
+               packet->blocks[i].flag);
       return false;
     }
   }
@@ -110,7 +110,7 @@ void VelodynePuckDecoder::decodePacket(const Packet* packet) {
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
     firings[fir_idx].firing_azimuth =
-        rawAzimuthToDouble(packet->blocks[blk_idx].rotation);
+        rawAzimuthToDouble(packet->blocks[blk_idx].azimuth);
   }
 
   // Interpolate the azimuth values
@@ -224,11 +224,13 @@ void VelodynePuckDecoder::packetCallback(
       if (!isPointInRange(firings[fir_idx].distance[laser_id])) continue;
 
       // Convert the point to xyz coordinate
-      size_t table_idx =
-          floor(firings[fir_idx].azimuth[laser_id] * 1000.0 + 0.5);
+      size_t table_idx = static_cast<size_t>(
+          firings[fir_idx].azimuth[laser_id] * kTableFactor + 0.5);
       // cout << table_idx << endl;
-      double cos_azimuth = cos_azimuth_table[table_idx];
-      double sin_azimuth = sin_azimuth_table[table_idx];
+      ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
+                    table_idx, firings[fir_idx].azimuth[laser_id]);
+      double cos_azimuth = kCosTable[table_idx];
+      double sin_azimuth = kSinTable[table_idx];
 
       // double x = firings[fir_idx].distance[scan_idx] *
       //  cos_scan_altitude[scan_idx] * sin(firings[fir_idx].azimuth[scan_idx]);
@@ -301,11 +303,13 @@ void VelodynePuckDecoder::packetCallback(
         if (!isPointInRange(firings[fir_idx].distance[laser_id])) continue;
 
         // Convert the point to xyz coordinate
-        size_t table_idx =
-            floor(firings[fir_idx].azimuth[laser_id] * 1000.0 + 0.5);
+        size_t table_idx = static_cast<size_t>(
+            firings[fir_idx].azimuth[laser_id] * kTableFactor + 0.5);
+        ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
+                      table_idx, firings[fir_idx].azimuth[laser_id]);
         // cout << table_idx << endl;
-        double cos_azimuth = cos_azimuth_table[table_idx];
-        double sin_azimuth = sin_azimuth_table[table_idx];
+        double cos_azimuth = kCosTable[table_idx];
+        double sin_azimuth = kSinTable[table_idx];
 
         // double x = firings[fir_idx].distance[scan_idx] *
         //  cos_scan_altitude[scan_idx] *

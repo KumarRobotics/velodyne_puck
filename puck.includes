@@ -15,3 +15,4 @@ velodyne_puck_msgs
 velodyne_puck_driver
 velodyne_puck_decoder/launch
 velodyne_puck_decoder
+velodyne_puck_decoder/test

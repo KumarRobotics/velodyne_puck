@@ -40,17 +40,14 @@ class VelodynePuckDriver {
   using Ptr = boost::shared_ptr<VelodynePuckDriver>;
   using ConstPtr = boost::shared_ptr<const VelodynePuckDriver>;
 
-  bool initialize();
-  bool polling();
+  bool Poll();
 
  private:
-  bool loadParameters();
-  bool createRosIO();
-  bool openUDPPort();
-  int getPacket(VelodynePacket& packet) const;
+  bool OpenUdpPort();
+  int ReadPacket(VelodynePacket& packet) const;
 
   // Ethernet relate variables
-  std::string device_ip_string;
+  std::string device_ip_str;
   in_addr device_ip;
   int socket_id{-1};
 
@@ -58,7 +55,6 @@ class VelodynePuckDriver {
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
 
-  std::string frame_id;
   ros::Publisher packet_pub;
 
   // Diagnostics updater
