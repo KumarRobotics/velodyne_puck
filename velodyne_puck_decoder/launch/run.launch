@@ -3,6 +3,7 @@
   <arg name="device_ip" default="172.16.107.201"/>
   <arg name="frame_id" default="velodyne"/>
   <arg name="driver" default="true"/>
+  <arg name="cloud" default="cloud"/>
 
   <group ns="$(arg frame_id)">
     <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/>
@@ -13,6 +14,7 @@
 
     <include file="$(find velodyne_puck_decoder)/launch/decoder_nodelet.launch">
       <arg name="frame_id" value="$(arg frame_id)"/>
+      <arg name="cloud" value="$(arg cloud)"/>
     </include>
   </group>
 

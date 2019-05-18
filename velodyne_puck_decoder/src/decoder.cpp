@@ -327,6 +327,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 }
 
 void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
+  ROS_INFO("Cloud");
   CloudT::Ptr cloud = boost::make_shared<CloudT>();
 
   cloud->header = pcl_conversions::toPCL(sweep_msg.header);
