@@ -207,15 +207,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
   for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
     const auto& firing = firings[fir_idx];
-
     for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
-      // Check if the point is valid.
-      if (!isPointInRange(firing.distance[laser_id])) {
-        //        ROS_WARN("distance not in range %f",
-        //        firing.distance[laser_id]);
-        continue;
-      }
-
       // Compute the time of the point
       double time = packet_start_time + kFiringCycleUs * fir_idx +
                     kSingleFiringUs * laser_id;
@@ -264,13 +256,6 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
       const auto& firing = firings[fir_idx];
       for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
-        // Check if the point is valid.
-        if (!isPointInRange(firing.distance[laser_id])) {
-          //          ROS_WARN("distance not in range %f",
-          //          firing.distance[laser_id]);
-          continue;
-        }
-
         // Compute the time of the point
         double time = packet_start_time +
                       kFiringCycleUs * (fir_idx - start_fir_idx) +
@@ -329,6 +314,7 @@ void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
     if (scan.points.size() <= 2) continue;
     for (size_t j = 1; j < scan.points.size() - 1; ++j) {
       // TODO: compute here instead of saving them in scan, waste space
+      if (!isPointInRange(scan.points[j].distance)) continue;
       const auto point = SphericalToEuclidean(scan.points[j], scan.elevation);
       // cloud->push_back does extra work, so we don't use it
       cloud->points.push_back(point);
