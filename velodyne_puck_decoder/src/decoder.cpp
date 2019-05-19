@@ -93,8 +93,11 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
-    firings[fir_idx].firing_azimuth =
-        rawAzimuthToDouble(packet->blocks[blk_idx].azimuth);
+    const auto raw_azimuth = packet->blocks[blk_idx].azimuth;
+    firings[fir_idx].firing_azimuth = rawAzimuthToDouble(raw_azimuth);
+    //    ROS_INFO_STREAM("Raw azimuth " << raw_azimuth);
+    ROS_WARN_STREAM_COND(raw_azimuth > 35999,
+                         "raw aimuth too big " << raw_azimuth);
   }
 
   // Interpolate the azimuth values
@@ -202,25 +205,29 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   }
 
   for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
+    const auto& firing = firings[fir_idx];
+
     for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
       // Check if the point is valid.
-      if (!isPointInRange(firings[fir_idx].distance[laser_id])) continue;
+      if (!isPointInRange(firing.distance[laser_id])) {
+        //        ROS_WARN("distance not in range %f",
+        //        firing.distance[laser_id]);
+        continue;
+      }
 
       // Convert the point to xyz coordinate
-      size_t table_idx = static_cast<size_t>(
-          firings[fir_idx].azimuth[laser_id] * kTableFactor + 0.5);
+      size_t table_idx =
+          static_cast<size_t>(firing.azimuth[laser_id] * kTableFactor + 0.5);
       // cout << table_idx << endl;
       ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
-                    table_idx, firings[fir_idx].azimuth[laser_id]);
+                    table_idx, firing.azimuth[laser_id]);
       double cos_azimuth = kCosTable[table_idx];
       double sin_azimuth = kSinTable[table_idx];
 
-      double x = firings[fir_idx].distance[laser_id] *
-                 kCosScanElevations[laser_id] * sin_azimuth;
-      double y = firings[fir_idx].distance[laser_id] *
-                 kCosScanElevations[laser_id] * cos_azimuth;
-      double z =
-          firings[fir_idx].distance[laser_id] * kSinScanElevations[laser_id];
+      const auto distance = firing.distance[laser_id];
+      double x = distance * kCosScanElevations[laser_id] * sin_azimuth;
+      double y = distance * kCosScanElevations[laser_id] * cos_azimuth;
+      double z = distance * kSinScanElevations[laser_id];
 
       // TODO: fix this
       double x_coord = y;
@@ -234,19 +241,16 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
       // Remap the index of the scan
       const int scan_index = LaserId2Index(laser_id);
       //          laser_id % 2 == 0 ? laser_id / 2 : laser_id / 2 + 8;
-      sweep_data->scans[scan_index].points.push_back(VelodynePoint());
-      VelodynePoint& new_point =
-          sweep_data->scans[scan_index]
-              .points[sweep_data->scans[scan_index].points.size() - 1];
-
+      VelodynePoint new_point;
       // Pack the data into point msg
       new_point.time = time;
       new_point.x = x_coord;
       new_point.y = y_coord;
       new_point.z = z_coord;
-      new_point.azimuth = firings[fir_idx].azimuth[laser_id];
-      new_point.distance = firings[fir_idx].distance[laser_id];
-      new_point.intensity = firings[fir_idx].intensity[laser_id];
+      new_point.azimuth = firing.azimuth[laser_id];
+      new_point.distance = firing.distance[laser_id];
+      new_point.intensity = firing.intensity[laser_id];
+      sweep_data->scans[scan_index].points.push_back(new_point);
     }
   }
 
@@ -263,6 +267,10 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     }
 
     sweep_data.reset(new VelodyneSweep());
+    for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
+      const auto scan_index = LaserId2Index(laser_id);
+      sweep_data->scans[scan_index].elevation = kScanElevations[laser_id];
+    }
 
     // Prepare the next revolution
     sweep_start_time = packet_msg->stamp.toSec() +
@@ -274,25 +282,28 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     end_fir_idx = kFiringsPerPacket;
 
     for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
+      const auto& firing = firings[fir_idx];
       for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
         // Check if the point is valid.
-        if (!isPointInRange(firings[fir_idx].distance[laser_id])) continue;
+        if (!isPointInRange(firing.distance[laser_id])) {
+          //          ROS_WARN("distance not in range %f",
+          //          firing.distance[laser_id]);
+          continue;
+        }
 
         // Convert the point to xyz coordinate
-        size_t table_idx = static_cast<size_t>(
-            firings[fir_idx].azimuth[laser_id] * kTableFactor + 0.5);
+        size_t table_idx =
+            static_cast<size_t>(firing.azimuth[laser_id] * kTableFactor + 0.5);
         ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
-                      table_idx, firings[fir_idx].azimuth[laser_id]);
+                      table_idx, firing.azimuth[laser_id]);
         // cout << table_idx << endl;
         double cos_azimuth = kCosTable[table_idx];
         double sin_azimuth = kSinTable[table_idx];
 
-        double x = firings[fir_idx].distance[laser_id] *
-                   kCosScanElevations[laser_id] * sin_azimuth;
-        double y = firings[fir_idx].distance[laser_id] *
-                   kCosScanElevations[laser_id] * cos_azimuth;
-        double z =
-            firings[fir_idx].distance[laser_id] * kSinScanElevations[laser_id];
+        const auto distance = firing.distance[laser_id];
+        double x = distance * kCosScanElevations[laser_id] * sin_azimuth;
+        double y = distance * kCosScanElevations[laser_id] * cos_azimuth;
+        double z = distance * kSinScanElevations[laser_id];
 
         double x_coord = y;
         double y_coord = -x;
@@ -306,19 +317,17 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
         // Remap the index of the scan
         int scan_index = LaserId2Index(laser_id);
         //        scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
-        sweep_data->scans[scan_index].points.push_back(VelodynePoint());
-        VelodynePoint& new_point =
-            sweep_data->scans[scan_index]
-                .points[sweep_data->scans[scan_index].points.size() - 1];
+        VelodynePoint new_point;
 
         // Pack the data into point msg
         new_point.time = time;
         new_point.x = x_coord;
         new_point.y = y_coord;
         new_point.z = z_coord;
-        new_point.azimuth = firings[fir_idx].azimuth[laser_id];
-        new_point.distance = firings[fir_idx].distance[laser_id];
-        new_point.intensity = firings[fir_idx].intensity[laser_id];
+        new_point.azimuth = firing.azimuth[laser_id];
+        new_point.distance = firing.distance[laser_id];
+        new_point.intensity = firing.intensity[laser_id];
+        sweep_data->scans[scan_index].points.push_back(new_point);
       }
     }
 
@@ -344,9 +353,19 @@ void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
       // TODO: compute here instead of saving them in scan, waste space
       const auto& vlp_point = scan.points[j];
       pcl::PointXYZI point;
-      point.x = vlp_point.x;
-      point.y = vlp_point.y;
-      point.z = vlp_point.z;
+      const auto cos_elevation = std::cos(scan.elevation);
+      const auto x =
+          vlp_point.distance * cos_elevation * std::sin(vlp_point.azimuth);
+      const auto y =
+          vlp_point.distance * cos_elevation * std::cos(vlp_point.azimuth);
+      const auto z = vlp_point.distance * std::sin(scan.elevation);
+
+      //      point.x = vlp_point.x;
+      //      point.y = vlp_point.y;
+      //      point.z = vlp_point.z;
+      point.x = y;
+      point.y = -x;
+      point.z = z;
       point.intensity = vlp_point.intensity;
       // cloud->push_back does extra work, so we don't use it
       cloud->points.push_back(point);

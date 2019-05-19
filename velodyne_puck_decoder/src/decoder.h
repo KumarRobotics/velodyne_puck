@@ -18,6 +18,8 @@
 
 #include <ros/ros.h>
 
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/Image.h>
 #include <velodyne_puck_msgs/VelodynePacket.h>
 #include <velodyne_puck_msgs/VelodyneSweep.h>
 
@@ -116,6 +118,9 @@ class VelodynePuckDecoder {
   ros::Publisher cloud_pub;
 
   velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
+
+  sensor_msgs::ImagePtr image_;
+  sensor_msgs::CameraInfoPtr cinfo_;
 };
 
 }  // namespace velodyne_puck_decoder
