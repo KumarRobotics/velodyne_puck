@@ -43,6 +43,7 @@ class VelodynePuckDecoder {
   using ConstPtr = boost::shared_ptr<const VelodynePuckDecoder>;
 
   bool Initialize();
+  void PacketCb(const VelodynePacketConstPtr& packet_msg);
 
  private:
   /// ==========================================================================
@@ -134,9 +135,8 @@ class VelodynePuckDecoder {
   };
 
   // Callback function for a single velodyne packet.
-  bool checkPacketValidity(const RawPacket* packet);
-  Decoded DecodePacket(const RawPacket* packet);
-  void PacketCb(const VelodynePacketConstPtr& packet_msg);
+  bool CheckData(const uint8_t* data);
+  Decoded DecodePacket(const uint8_t* data);
 
   // Publish data
   void PublishCloud(const VelodyneSweep& sweep_msg);

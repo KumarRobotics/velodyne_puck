@@ -72,7 +72,9 @@ bool VelodynePuckDecoder::Initialize() {
   return true;
 }
 
-bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
+bool VelodynePuckDecoder::CheckData(const uint8_t* data) {
+  //  const RawPacket* packet = (const RawPacket*)(data);
+  const auto* packet = reinterpret_cast<const RawPacket*>(data);
   for (int i = 0; i < kBlocksPerPacket; ++i) {
     if (packet->blocks[i].flag != UPPER_BANK) {
       ROS_WARN("Skip invalid VLP-16 packet: block %d header is %x", i,
@@ -84,7 +86,8 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
 }
 
 VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
-    const RawPacket* packet) {
+    const uint8_t* data) {
+  const auto* packet = reinterpret_cast<const RawPacket*>(data);
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
@@ -167,18 +170,32 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
   /// My stuff
 
   Decoded decoded;
+  {
+    //
+    const auto* packet = reinterpret_cast<const Packet*>(data);
+
+    // Loop over block
+    for (int bi = 0; bi < kBlocksPerPacket; ++bi) {
+      const auto& block = packet->blocks[bi];
+      const auto raw_azimuth = block.azimuth;
+      ROS_WARN_STREAM_COND(raw_azimuth > 35999,
+                           "Invalid raw azimuth: " << raw_azimuth);
+
+      // Put azimuth into decoded
+    }
+  }
   return decoded;
 }
 
 void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   // Convert the msg to the raw packet type.
-  const RawPacket* packet = (const RawPacket*)(&(packet_msg->data[0]));
+  //  const RawPacket* packet = (const RawPacket*)(&(packet_msg->data[0]));
 
   // Check if the packet is valid
-  if (!checkPacketValidity(packet)) return;
+  if (!CheckData(&(packet_msg->data[0]))) return;
 
   // Decode the packet
-  const auto decoded = DecodePacket(packet);
+  const auto decoded = DecodePacket(&(packet_msg->data[0]));
 
   // Find the start of a new revolution
   //    If there is one, new_sweep_start will be the index of the start firing,
