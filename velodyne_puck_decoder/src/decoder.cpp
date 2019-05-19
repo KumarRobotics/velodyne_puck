@@ -63,7 +63,7 @@ VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
 
 bool VelodynePuckDecoder::Initialize() {
   // Fill in the altitude for each scan.
-  for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
+  for (size_t laser_id = 0; laser_id < kFiringsPerSequence; ++laser_id) {
     const auto scan_index = LaserId2Index(laser_id);
     const auto elevation = kMinElevation + scan_index * kDeltaElevation;
     sweep_data->scans[scan_index].elevation = elevation;
@@ -72,7 +72,7 @@ bool VelodynePuckDecoder::Initialize() {
   return true;
 }
 
-bool VelodynePuckDecoder::checkPacketValidity(const Packet* packet) {
+bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
   for (int i = 0; i < kBlocksPerPacket; ++i) {
     if (packet->blocks[i].flag != UPPER_BANK) {
       ROS_WARN("Skip invalid VLP-16 packet: block %d header is %x", i,
@@ -83,7 +83,7 @@ bool VelodynePuckDecoder::checkPacketValidity(const Packet* packet) {
   return true;
 }
 
-void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
+void VelodynePuckDecoder::DecodePacket(const RawPacket* packet) {
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
@@ -120,11 +120,11 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
 
   // Fill in the distance and intensity for each firing.
   for (size_t blk_idx = 0; blk_idx < kBlocksPerPacket; ++blk_idx) {
-    const DataBlock& raw_block = packet->blocks[blk_idx];
+    const RawBlock& raw_block = packet->blocks[blk_idx];
 
-    for (size_t blk_fir_idx = 0; blk_fir_idx < kFiringsPerBlock;
+    for (size_t blk_fir_idx = 0; blk_fir_idx < kSequencePerBlock;
          ++blk_fir_idx) {
-      size_t fir_idx = blk_idx * kFiringsPerBlock + blk_fir_idx;
+      size_t fir_idx = blk_idx * kSequencePerBlock + blk_fir_idx;
       auto& firing = firings[fir_idx];
 
       double azimuth_diff = 0.0;
@@ -135,10 +135,10 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
         azimuth_diff =
             firing.firing_azimuth - firings[fir_idx - 1].firing_azimuth;
 
-      for (size_t scan_fir_idx = 0; scan_fir_idx < kFiringsPerCycle;
+      for (size_t scan_fir_idx = 0; scan_fir_idx < kFiringsPerSequence;
            ++scan_fir_idx) {
         size_t byte_idx =
-            kPointBytes * (kFiringsPerCycle * blk_fir_idx + scan_fir_idx);
+            kPointBytes * (kFiringsPerSequence * blk_fir_idx + scan_fir_idx);
 
         // Azimuth
         firing.azimuth[scan_fir_idx] =
@@ -166,7 +166,7 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
 
 void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   // Convert the msg to the raw packet type.
-  const Packet* packet = (const Packet*)(&(packet_msg->data[0]));
+  const RawPacket* packet = (const RawPacket*)(&(packet_msg->data[0]));
 
   // Check if the packet is valid
   if (!checkPacketValidity(packet)) return;
@@ -207,7 +207,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
   for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
     const auto& firing = firings[fir_idx];
-    for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
+    for (size_t laser_id = 0; laser_id < kFiringsPerSequence; ++laser_id) {
       // Compute the time of the point
       double time = packet_start_time + kFiringCycleUs * fir_idx +
                     kSingleFiringUs * laser_id;
@@ -238,7 +238,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     }
 
     sweep_data.reset(new VelodyneSweep());
-    for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
+    for (size_t laser_id = 0; laser_id < kFiringsPerSequence; ++laser_id) {
       const auto scan_index = LaserId2Index(laser_id);
       const auto elevation = kMinElevation + scan_index * kDeltaElevation;
       sweep_data->scans[scan_index].elevation = elevation;
@@ -255,7 +255,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
     for (size_t fir_idx = start_fir_idx; fir_idx < end_fir_idx; ++fir_idx) {
       const auto& firing = firings[fir_idx];
-      for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
+      for (size_t laser_id = 0; laser_id < kFiringsPerSequence; ++laser_id) {
         // Compute the time of the point
         double time = packet_start_time +
                       kFiringCycleUs * (fir_idx - start_fir_idx) +
@@ -314,7 +314,7 @@ void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
     if (scan.points.size() <= 2) continue;
     for (size_t j = 1; j < scan.points.size() - 1; ++j) {
       // TODO: compute here instead of saving them in scan, waste space
-      if (!isPointInRange(scan.points[j].distance)) continue;
+      if (!IsPointInRange(scan.points[j].distance)) continue;
       const auto point = SphericalToEuclidean(scan.points[j], scan.elevation);
       // cloud->push_back does extra work, so we don't use it
       cloud->points.push_back(point);

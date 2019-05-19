@@ -59,21 +59,21 @@ static constexpr double kFiringCycleUs = 55.296;  // [µs]
 // The information from two firing sequences of 16 lasers is contained in each
 // data block. Each packet contains the data from 24 firing sequences in 12 data
 // blocks.
-static constexpr int kFiringsPerCycle = 16;
-static constexpr int kFiringsPerBlock = 2;
+static constexpr int kFiringsPerSequence = 16;
+static constexpr int kSequencePerBlock = 2;
 static constexpr int kBlocksPerPacket = 12;
 static constexpr int kFiringsPerPacket =
-    kFiringsPerBlock * kBlocksPerPacket;  // 24
+    kSequencePerBlock * kBlocksPerPacket;  // 24
 
 inline constexpr int LaserId2Index(int id) {
-  return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerCycle / 2;
+  return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerSequence / 2;
 }
 
 // Pre-compute the sine and cosine for the altitude angles.
 static constexpr float kMinElevation = deg2rad(-15.0);
 static constexpr float kMaxElevation = deg2rad(15.0);
 static constexpr float kDeltaElevation =
-    (kMaxElevation - kMinElevation) / (kFiringsPerCycle - 1);
+    (kMaxElevation - kMinElevation) / (kFiringsPerSequence - 1);
 
 inline constexpr float RawAzimuthToFloat(uint16_t raw_azimuth) {
   // According to the user manual,
