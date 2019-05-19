@@ -65,14 +65,8 @@ bool VelodynePuckDecoder::Initialize() {
   // Fill in the altitude for each scan.
   for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
     const auto scan_index = LaserId2Index(laser_id);
-    sweep_data->scans[scan_index].elevation = kScanElevations[laser_id];
-  }
-
-  // Create the sin and cos table for different azimuth values.
-  for (size_t i = 0; i < kTableSize; ++i) {
-    double angle = static_cast<double>(i) / kTableFactor;
-    kCosTable[i] = cos(angle);
-    kSinTable[i] = sin(angle);
+    const auto elevation = kMinElevation + scan_index * kDeltaElevation;
+    sweep_data->scans[scan_index].elevation = elevation;
   }
 
   return true;
@@ -94,7 +88,7 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
     const auto raw_azimuth = packet->blocks[blk_idx].azimuth;
-    firings[fir_idx].firing_azimuth = rawAzimuthToDouble(raw_azimuth);
+    firings[fir_idx].firing_azimuth = RawAzimuthToFloat(raw_azimuth);
     //    ROS_INFO_STREAM("Raw azimuth " << raw_azimuth);
     ROS_WARN_STREAM_COND(raw_azimuth > 35999,
                          "raw aimuth too big " << raw_azimuth);
@@ -120,6 +114,8 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
         firings[fir_idx].firing_azimuth > 2 * M_PI
             ? firings[fir_idx].firing_azimuth - 2 * M_PI
             : firings[fir_idx].firing_azimuth;
+    const auto az = firings[fir_idx].firing_azimuth;
+    ROS_WARN_STREAM_COND(az < 0 || az > (2 * M_PI), "1 azimuth wrong " << az);
   }
 
   // Fill in the distance and intensity for each firing.
@@ -129,14 +125,15 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
     for (size_t blk_fir_idx = 0; blk_fir_idx < kFiringsPerBlock;
          ++blk_fir_idx) {
       size_t fir_idx = blk_idx * kFiringsPerBlock + blk_fir_idx;
+      auto& firing = firings[fir_idx];
 
       double azimuth_diff = 0.0;
       if (fir_idx < kFiringsPerPacket - 1)
-        azimuth_diff = firings[fir_idx + 1].firing_azimuth -
-                       firings[fir_idx].firing_azimuth;
+        azimuth_diff =
+            firings[fir_idx + 1].firing_azimuth - firing.firing_azimuth;
       else
-        azimuth_diff = firings[fir_idx].firing_azimuth -
-                       firings[fir_idx - 1].firing_azimuth;
+        azimuth_diff =
+            firing.firing_azimuth - firings[fir_idx - 1].firing_azimuth;
 
       for (size_t scan_fir_idx = 0; scan_fir_idx < kFiringsPerCycle;
            ++scan_fir_idx) {
@@ -144,9 +141,13 @@ void VelodynePuckDecoder::DecodePacket(const Packet* packet) {
             kPointBytes * (kFiringsPerCycle * blk_fir_idx + scan_fir_idx);
 
         // Azimuth
-        firings[fir_idx].azimuth[scan_fir_idx] =
-            firings[fir_idx].firing_azimuth +
+        firing.azimuth[scan_fir_idx] =
+            firing.firing_azimuth +
             (scan_fir_idx * kSingleFiringUs / kFiringCycleUs) * azimuth_diff;
+
+        const auto az = firing.firing_azimuth;
+        ROS_WARN_STREAM_COND(az < 0 || az > (2 * M_PI),
+                             "2 azimuth wrong " << az);
 
         // Distance
         TwoBytes raw_distance;
@@ -215,25 +216,6 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
         continue;
       }
 
-      // Convert the point to xyz coordinate
-      size_t table_idx =
-          static_cast<size_t>(firing.azimuth[laser_id] * kTableFactor + 0.5);
-      // cout << table_idx << endl;
-      ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
-                    table_idx, firing.azimuth[laser_id]);
-      double cos_azimuth = kCosTable[table_idx];
-      double sin_azimuth = kSinTable[table_idx];
-
-      const auto distance = firing.distance[laser_id];
-      double x = distance * kCosScanElevations[laser_id] * sin_azimuth;
-      double y = distance * kCosScanElevations[laser_id] * cos_azimuth;
-      double z = distance * kSinScanElevations[laser_id];
-
-      // TODO: fix this
-      double x_coord = y;
-      double y_coord = -x;
-      double z_coord = z;
-
       // Compute the time of the point
       double time = packet_start_time + kFiringCycleUs * fir_idx +
                     kSingleFiringUs * laser_id;
@@ -241,12 +223,9 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
       // Remap the index of the scan
       const int scan_index = LaserId2Index(laser_id);
       //          laser_id % 2 == 0 ? laser_id / 2 : laser_id / 2 + 8;
-      VelodynePoint new_point;
       // Pack the data into point msg
+      VelodynePoint new_point;
       new_point.time = time;
-      new_point.x = x_coord;
-      new_point.y = y_coord;
-      new_point.z = z_coord;
       new_point.azimuth = firing.azimuth[laser_id];
       new_point.distance = firing.distance[laser_id];
       new_point.intensity = firing.intensity[laser_id];
@@ -269,7 +248,8 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     sweep_data.reset(new VelodyneSweep());
     for (size_t laser_id = 0; laser_id < kFiringsPerCycle; ++laser_id) {
       const auto scan_index = LaserId2Index(laser_id);
-      sweep_data->scans[scan_index].elevation = kScanElevations[laser_id];
+      const auto elevation = kMinElevation + scan_index * kDeltaElevation;
+      sweep_data->scans[scan_index].elevation = elevation;
     }
 
     // Prepare the next revolution
@@ -291,24 +271,6 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
           continue;
         }
 
-        // Convert the point to xyz coordinate
-        size_t table_idx =
-            static_cast<size_t>(firing.azimuth[laser_id] * kTableFactor + 0.5);
-        ROS_WARN_COND(table_idx >= kTableSize, "table_idx %zu, azimuth %f",
-                      table_idx, firing.azimuth[laser_id]);
-        // cout << table_idx << endl;
-        double cos_azimuth = kCosTable[table_idx];
-        double sin_azimuth = kSinTable[table_idx];
-
-        const auto distance = firing.distance[laser_id];
-        double x = distance * kCosScanElevations[laser_id] * sin_azimuth;
-        double y = distance * kCosScanElevations[laser_id] * cos_azimuth;
-        double z = distance * kSinScanElevations[laser_id];
-
-        double x_coord = y;
-        double y_coord = -x;
-        double z_coord = z;
-
         // Compute the time of the point
         double time = packet_start_time +
                       kFiringCycleUs * (fir_idx - start_fir_idx) +
@@ -316,14 +278,10 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
         // Remap the index of the scan
         int scan_index = LaserId2Index(laser_id);
-        //        scan_idx % 2 == 0 ? scan_idx / 2 : scan_idx / 2 + 8;
-        VelodynePoint new_point;
 
         // Pack the data into point msg
+        VelodynePoint new_point;
         new_point.time = time;
-        new_point.x = x_coord;
-        new_point.y = y_coord;
-        new_point.z = z_coord;
         new_point.azimuth = firing.azimuth[laser_id];
         new_point.distance = firing.distance[laser_id];
         new_point.intensity = firing.intensity[laser_id];
@@ -333,6 +291,26 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
     packet_start_time += kFiringCycleUs * (end_fir_idx - start_fir_idx);
   }
+}
+
+PointT SphericalToEuclidean(const VelodynePoint& vp, float omega) {
+  PointT p;
+
+  const auto cos_omega = std::cos(omega);
+  const auto d = vp.distance;
+  const auto alpha = vp.azimuth;
+
+  // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
+  const auto x = d * cos_omega * std::sin(alpha);
+  const auto y = d * cos_omega * std::cos(alpha);
+  const auto z = d * std::sin(omega);
+
+  p.x = y;
+  p.y = -x;
+  p.z = z;
+  p.intensity = vp.intensity;
+
+  return p;
 }
 
 void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
@@ -351,22 +329,7 @@ void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
     if (scan.points.size() <= 2) continue;
     for (size_t j = 1; j < scan.points.size() - 1; ++j) {
       // TODO: compute here instead of saving them in scan, waste space
-      const auto& vlp_point = scan.points[j];
-      pcl::PointXYZI point;
-      const auto cos_elevation = std::cos(scan.elevation);
-      const auto x =
-          vlp_point.distance * cos_elevation * std::sin(vlp_point.azimuth);
-      const auto y =
-          vlp_point.distance * cos_elevation * std::cos(vlp_point.azimuth);
-      const auto z = vlp_point.distance * std::sin(scan.elevation);
-
-      //      point.x = vlp_point.x;
-      //      point.y = vlp_point.y;
-      //      point.z = vlp_point.z;
-      point.x = y;
-      point.y = -x;
-      point.z = z;
-      point.intensity = vlp_point.intensity;
+      const auto point = SphericalToEuclidean(scan.points[j], scan.elevation);
       // cloud->push_back does extra work, so we don't use it
       cloud->points.push_back(point);
     }

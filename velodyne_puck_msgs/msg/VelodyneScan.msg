@@ -1,5 +1,5 @@
 # Altitude of all the points within this scan
-float64 elevation
+float32 elevation
 
 # The valid points in this scan sorted by azimuth
 # from 0 to 359.99

@@ -71,10 +71,10 @@ class VelodynePuckDecoder {
 
   struct Firing {
     // Azimuth associated with the first shot within this firing.
-    double firing_azimuth;
-    double azimuth[kFiringsPerCycle];
-    double distance[kFiringsPerCycle];
-    double intensity[kFiringsPerCycle];
+    float firing_azimuth;
+    float azimuth[kFiringsPerCycle];
+    float distance[kFiringsPerCycle];
+    float intensity[kFiringsPerCycle];
   };
 
   // Intialization sequence
@@ -90,7 +90,7 @@ class VelodynePuckDecoder {
   void PublishCloud(const VelodyneSweep& sweep_msg);
 
   // Check if a point is in the required range.
-  bool isPointInRange(double distance) const {
+  bool isPointInRange(float distance) const {
     return distance >= min_range && distance <= max_range;
   }
 
@@ -98,11 +98,9 @@ class VelodynePuckDecoder {
   double min_range;
   double max_range;
 
-  double kCosTable[kTableSize];
-  double kSinTable[kTableSize];
-
   bool is_first_sweep{true};
-  double last_azimuth{0.0};
+  float last_azimuth{0.0};
+
   double sweep_start_time{0.0};
   double packet_start_time{0.0};
 
