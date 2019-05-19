@@ -83,7 +83,8 @@ bool VelodynePuckDecoder::checkPacketValidity(const RawPacket* packet) {
   return true;
 }
 
-void VelodynePuckDecoder::DecodePacket(const RawPacket* packet) {
+VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
+    const RawPacket* packet) {
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringsPerPacket /*24*/; fir_idx += 2) {
     size_t blk_idx = fir_idx / 2;
@@ -162,6 +163,11 @@ void VelodynePuckDecoder::DecodePacket(const RawPacket* packet) {
       }
     }
   }
+
+  /// My stuff
+
+  Decoded decoded;
+  return decoded;
 }
 
 void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
@@ -172,7 +178,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   if (!checkPacketValidity(packet)) return;
 
   // Decode the packet
-  DecodePacket(packet);
+  const auto decoded = DecodePacket(packet);
 
   // Find the start of a new revolution
   //    If there is one, new_sweep_start will be the index of the start firing,

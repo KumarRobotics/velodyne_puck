@@ -89,6 +89,16 @@ class VelodynePuckDecoder {
     uint8_t factory[2];
   } __attribute__((packed));
   static_assert(sizeof(Packet) == 1206, "sizeof(Packet) != 1206");
+
+  struct Decoded {
+    struct Firing {
+      float azimuth;
+      float distance[kFiringsPerSequence];  // 16
+      float reflectivity[kFiringsPerSequence];
+    };
+
+    Firing firings[kFiringsPerPacket];  // 2 * 12 = 24
+  };
   /// ==========================================================================
 
   union TwoBytes {
@@ -125,7 +135,7 @@ class VelodynePuckDecoder {
 
   // Callback function for a single velodyne packet.
   bool checkPacketValidity(const RawPacket* packet);
-  void DecodePacket(const RawPacket* packet);
+  Decoded DecodePacket(const RawPacket* packet);
   void PacketCb(const VelodynePacketConstPtr& packet_msg);
 
   // Publish data
