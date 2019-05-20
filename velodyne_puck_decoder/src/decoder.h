@@ -47,6 +47,7 @@ class VelodynePuckDecoder {
 
  private:
   /// ==========================================================================
+  /// All of these uses laser index from velodyne which is interleaved
   /// 9.3.1.3 Data Point
   /// A data point is a measurement by one laser channel of a relection of a
   /// laser pulse
@@ -60,29 +61,28 @@ class VelodynePuckDecoder {
   /// A firing sequence occurs when all the lasers in a sensor are fired. There
   /// are 16 firings per cycle for VLP-16
   struct FiringSequence {
-    DataPoint points[kFiringsPerSequence];  // 16
+    DataPoint points[kFiringsPerFiringSequence];  // 16
   } __attribute__((packed));
   static_assert(sizeof(FiringSequence) == 3 * 16,
                 "sizeof(FiringSequence) != 48");
 
   /// 9.3.1.4 Azimuth
-  /// A two-bytle azimuth value (alpha) appears after the flag bytes at the
+  /// A two-byte azimuth value (alpha) appears after the flag bytes at the
   /// beginning of each data block
   ///
   /// 9.3.1.5 Data Block
   /// The information from 2 firing sequences of 16 lasers is contained in each
   /// data block. Each packet contains the data from 24 firing sequences in 12
   /// data blocks.
-  ///
   struct DataBlock {
     uint16_t flag;
-    uint16_t azimuth;
-    FiringSequence sequences[kSequencePerBlock];  // 2
+    uint16_t azimuth;                                    // [0, 35999]
+    FiringSequence fseqs[kFiringSequencesPerDataBlock];  // 2
   } __attribute__((packed));
   static_assert(sizeof(DataBlock) == 100, "sizeof(DataBlock) != 100");
 
   struct Packet {
-    DataBlock blocks[kBlocksPerPacket];  // 12
+    DataBlock blocks[kDataBlocksPerPacket];  // 12
     /// The four-byte time stamp is a 32-bit unsigned integer marking the moment
     /// of the first data point in the first firing sequcne of the first data
     /// block
@@ -91,15 +91,14 @@ class VelodynePuckDecoder {
   } __attribute__((packed));
   static_assert(sizeof(Packet) == 1206, "sizeof(Packet) != 1206");
 
-  struct Decoded {
-    struct Firing {
-      float azimuth;
-      float distance[kFiringsPerSequence];  // 16
-      float reflectivity[kFiringsPerSequence];
-    };
-
-    Firing firings[kFiringsPerPacket];  // 2 * 12 = 24
+  /// Decoded result
+  struct TimedFiringSeq {
+    double time;
+    float azimuth;  // rad [0, 2pi)
+    FiringSequence sequence;
   };
+
+  using Decoded = std::array<TimedFiringSeq, kFiringSequencesPerPacket>;
   /// ==========================================================================
 
   union TwoBytes {
@@ -117,7 +116,7 @@ class VelodynePuckDecoder {
 
   static_assert(sizeof(RawBlock) == 100, "DataBlock size must be 100");
   struct RawPacket {
-    RawBlock blocks[kBlocksPerPacket];  // 12
+    RawBlock blocks[kDataBlocksPerPacket];  // 12
     /// The four-byte time stamp is a 32-bit unsigned integer marking the moment
     /// of the first data point in the first firing sequcne of the first data
     /// block
@@ -126,12 +125,12 @@ class VelodynePuckDecoder {
   } __attribute__((packed));
   static_assert(sizeof(RawPacket) == 1206, "sizeof(RawPacket) != 1206");
 
-  struct Firing {
+  struct FiringOld {
     // Azimuth associated with the first shot within this firing.
     float firing_azimuth;
-    float azimuth[kFiringsPerSequence];
-    float distance[kFiringsPerSequence];
-    float intensity[kFiringsPerSequence];
+    float azimuth[kFiringsPerFiringSequence];
+    float distance[kFiringsPerFiringSequence];
+    float intensity[kFiringsPerFiringSequence];
   };
 
   // Callback function for a single velodyne packet.
@@ -140,6 +139,9 @@ class VelodynePuckDecoder {
 
   // Publish data
   void PublishCloud(const VelodyneSweep& sweep_msg);
+
+  // My version
+  void PublishCloud();
 
   // Check if a point is in the required range.
   bool IsPointInRange(float distance) const {
@@ -156,7 +158,7 @@ class VelodynePuckDecoder {
   double sweep_start_time{0.0};
   double packet_start_time{0.0};
 
-  Firing firings[kFiringsPerPacket];
+  FiringOld firings[kFiringSequencesPerPacket];
 
   // ROS related parameters
   ros::NodeHandle nh;
@@ -169,8 +171,9 @@ class VelodynePuckDecoder {
 
   velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 
-  sensor_msgs::ImagePtr image_;
-  sensor_msgs::CameraInfoPtr cinfo_;
+  std::vector<TimedFiringSeq> buffer_;  // buffer
+  sensor_msgs::ImagePtr image_;         // range image
+  sensor_msgs::CameraInfoPtr cinfo_;    // how to restore points
 };
 
 }  // namespace velodyne_puck_decoder

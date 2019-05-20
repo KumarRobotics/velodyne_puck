@@ -45,8 +45,8 @@ static constexpr int kPointBytesPerBlock =
 
 // According to Bruce Hall DISTANCE_MAX is 65.0, but we noticed
 // valid packets with readings up to 130.0.
-static const double kDistanceMax = 130.0;         // [m]
-static const double kDistanceResolution = 0.002;  // [m]
+static constexpr float kDistanceMax = 130.0;         // [m]
+static constexpr float kDistanceResolution = 0.002;  // [m]
 
 /** @todo make this work for both big and little-endian machines */
 static const uint16_t UPPER_BANK = 0xeeff;
@@ -59,25 +59,30 @@ static constexpr double kFiringCycleUs = 55.296;  // [µs]
 // The information from two firing sequences of 16 lasers is contained in each
 // data block. Each packet contains the data from 24 firing sequences in 12 data
 // blocks.
-static constexpr int kFiringsPerSequence = 16;
-static constexpr int kSequencePerBlock = 2;
-static constexpr int kBlocksPerPacket = 12;
-static constexpr int kFiringsPerPacket =
-    kSequencePerBlock * kBlocksPerPacket;  // 24
+static constexpr int kFiringsPerFiringSequence = 16;
+static constexpr int kFiringSequencesPerDataBlock = 2;
+static constexpr int kDataBlocksPerPacket = 12;
+static constexpr int kFiringSequencesPerPacket =
+    kFiringSequencesPerDataBlock * kDataBlocksPerPacket;  // 24
 
 inline constexpr int LaserId2Index(int id) {
-  return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerSequence / 2;
+  return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
 }
 
 // Pre-compute the sine and cosine for the altitude angles.
 static constexpr float kMinElevation = deg2rad(-15.0);
 static constexpr float kMaxElevation = deg2rad(15.0);
 static constexpr float kDeltaElevation =
-    (kMaxElevation - kMinElevation) / (kFiringsPerSequence - 1);
+    (kMaxElevation - kMinElevation) / (kFiringsPerFiringSequence - 1);
 
-inline constexpr float RawAzimuthToFloat(uint16_t raw_azimuth) {
+inline constexpr float Azimuth(uint16_t raw_azimuth) {
   // According to the user manual,
   return deg2rad(static_cast<float>(raw_azimuth) / 100.0);
+}
+
+/// p55 9.3.1.2
+inline constexpr float Distance(uint16_t raw_distance) {
+  return static_cast<float>(raw_distance) * kDistanceResolution;
 }
 
 /// p51 8.3.1

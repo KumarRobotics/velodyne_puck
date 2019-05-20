@@ -10,7 +10,6 @@ velodyne_puck_decoder/src
 velodyne_puck
 velodyne_puck_msgs/msg
 velodyne_puck_driver/launch
-.
 velodyne_puck_msgs
 velodyne_puck_driver
 velodyne_puck_decoder/launch
