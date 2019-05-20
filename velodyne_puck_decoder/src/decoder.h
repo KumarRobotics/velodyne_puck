@@ -18,8 +18,6 @@
 
 #include <ros/ros.h>
 
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/Image.h>
 #include <velodyne_puck_msgs/VelodynePacket.h>
 #include <velodyne_puck_msgs/VelodyneSweep.h>
 
@@ -27,6 +25,7 @@
 
 namespace velodyne_puck_decoder {
 
+using velodyne_puck_msgs::VelodynePacket;
 using velodyne_puck_msgs::VelodynePacketConstPtr;
 using velodyne_puck_msgs::VelodyneSweep;
 
@@ -76,8 +75,8 @@ class VelodynePuckDecoder {
   /// data blocks.
   struct DataBlock {
     uint16_t flag;
-    uint16_t azimuth;                                    // [0, 35999]
-    FiringSequence fseqs[kFiringSequencesPerDataBlock];  // 2
+    uint16_t azimuth;                                        // [0, 35999]
+    FiringSequence sequences[kFiringSequencesPerDataBlock];  // 2
   } __attribute__((packed));
   static_assert(sizeof(DataBlock) == 100, "sizeof(DataBlock) != 100");
 
@@ -89,16 +88,17 @@ class VelodynePuckDecoder {
     uint32_t stamp;
     uint8_t factory[2];
   } __attribute__((packed));
-  static_assert(sizeof(Packet) == 1206, "sizeof(Packet) != 1206");
+  static_assert(sizeof(Packet) == sizeof(VelodynePacket().data),
+                "sizeof(Packet) != 1206");
 
   /// Decoded result
-  struct TimedFiringSeq {
+  struct TimedFiringSequence {
     double time;
     float azimuth;  // rad [0, 2pi)
     FiringSequence sequence;
   };
 
-  using Decoded = std::array<TimedFiringSeq, kFiringSequencesPerPacket>;
+  using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
   /// ==========================================================================
 
   union TwoBytes {
@@ -134,8 +134,9 @@ class VelodynePuckDecoder {
   };
 
   // Callback function for a single velodyne packet.
-  bool CheckData(const uint8_t* data);
-  Decoded DecodePacket(const uint8_t* data);
+  bool CheckData(const RawPacket* packet);
+  void DecodePacket(const RawPacket* packet);
+  Decoded DecodePacket(const Packet* packet, double time);
 
   // Publish data
   void PublishCloud(const VelodyneSweep& sweep_msg);
@@ -171,9 +172,7 @@ class VelodynePuckDecoder {
 
   velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 
-  std::vector<TimedFiringSeq> buffer_;  // buffer
-  sensor_msgs::ImagePtr image_;         // range image
-  sensor_msgs::CameraInfoPtr cinfo_;    // how to restore points
+  std::vector<TimedFiringSequence> buffer_;  // buffer
 };
 
 }  // namespace velodyne_puck_decoder

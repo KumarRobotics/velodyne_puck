@@ -20,6 +20,9 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
+
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 
 namespace velodyne_puck_decoder {
@@ -72,9 +75,7 @@ bool VelodynePuckDecoder::Initialize() {
   return true;
 }
 
-bool VelodynePuckDecoder::CheckData(const uint8_t* data) {
-  //  const RawPacket* packet = (const RawPacket*)(data);
-  const auto* packet = reinterpret_cast<const RawPacket*>(data);
+bool VelodynePuckDecoder::CheckData(const RawPacket* packet) {
   for (int i = 0; i < kDataBlocksPerPacket; ++i) {
     if (packet->blocks[i].flag != UPPER_BANK) {
       ROS_WARN("Skip invalid VLP-16 packet: block %d header is %x", i,
@@ -85,9 +86,7 @@ bool VelodynePuckDecoder::CheckData(const uint8_t* data) {
   return true;
 }
 
-VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
-    const uint8_t* data) {
-  const auto* packet = reinterpret_cast<const RawPacket*>(data);
+void VelodynePuckDecoder::DecodePacket(const RawPacket* packet) {
   // Compute the azimuth angle for each firing.
   for (size_t fir_idx = 0; fir_idx < kFiringSequencesPerPacket /*24*/;
        fir_idx += 2) {
@@ -95,7 +94,7 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
     const auto raw_azimuth = packet->blocks[blk_idx].azimuth;
     firings[fir_idx].firing_azimuth = Azimuth(raw_azimuth);
     //    ROS_INFO_STREAM("Raw azimuth " << raw_azimuth);
-    ROS_WARN_STREAM_COND(raw_azimuth > 35999,
+    ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
                          "raw aimuth too big " << raw_azimuth);
   }
 
@@ -168,36 +167,87 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
       }
     }
   }
+}
 
-  /// My stuff
+VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
+    const Packet* packet, double time) {
+  // Azimuth is clockwise which is absurd
+  // ^ y
+  // |  /
+  // |a/
+  // |/
+  // o ------ > x
 
-  // std::array<TimedFiringSeq, kFiringSequencesPerPacket>;
+  // std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
   Decoded decoded;
-  {
-    const auto* packet = reinterpret_cast<const Packet*>(data);
+  // For each data block, 12 total
+  for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
+    const auto& block = packet->blocks[bi];
+    const auto raw_azimuth = block.azimuth;
+    ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
+                         "Invalid raw azimuth: " << raw_azimuth);
 
-    // Loop over block
-    for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
-      const auto& block = packet->blocks[bi];
-      const auto raw_azimuth = block.azimuth;
-      ROS_WARN_STREAM_COND(raw_azimuth > 35999,
-                           "Invalid raw azimuth: " << raw_azimuth);
-
-      // Put azimuth into decoded
+    // for each firing sequence in the data block, 2
+    for (int fsi = 0; fsi < kFiringSequencesPerDataBlock; ++fsi) {
+      // Index into decoded, hardcode 2 for now
+      const auto di = bi * 2 + fsi;
+      auto& tfseq = decoded[di];
+      // Assume all firings within each firing sequence occur at the same time
+      tfseq.time = time + di * kFiringCycleUs * 1e-6;
+      tfseq.azimuth = Azimuth(block.azimuth);  // Half of the azimuth is wrong
+      tfseq.sequence = block.sequences[fsi];
     }
   }
+
+  // Fix azimuth for odd firing sequences
+  for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
+    // 1,3,5,...,23
+    const auto di = bi * 2 + 1;
+
+    auto prev = di - 1;
+    auto next = di + 1;
+    // Handle last block where there's no next to inerpolate
+    // Just use the previous two
+    if (bi == kDataBlocksPerPacket - 1) {
+      prev -= 2;
+      next -= 2;
+    }
+
+    auto azimuth_prev = decoded[prev].azimuth;
+    auto azimuth_next = decoded[next].azimuth;
+
+    // Angle warping here
+    if (azimuth_next < azimuth_prev) {
+      azimuth_next += M_PI * 2;
+    }
+
+    ROS_WARN_COND(azimuth_prev > azimuth_next,
+                  "azimuth_prev %f > azimuth_next %f", azimuth_prev,
+                  azimuth_next);
+
+    const auto azimuth_diff = (azimuth_next - azimuth_prev) / 2.0;
+    const auto azimuth_diff_deg = rad2deg(azimuth_diff);
+    ROS_WARN_COND(std::abs(azimuth_diff_deg - 0.1) > 1e-2,
+                  "azimuth_diff too big: %f deg", azimuth_diff_deg);
+    decoded[di].azimuth += azimuth_diff;
+  }
+
+  // Debug print here
+
   return decoded;
 }
 
 void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   // Convert the msg to the raw packet type.
   //  const RawPacket* packet = (const RawPacket*)(&(packet_msg->data[0]));
+  const auto* packet =
+      reinterpret_cast<const RawPacket*>(&(packet_msg->data[0]));
 
   // Check if the packet is valid
-  if (!CheckData(&(packet_msg->data[0]))) return;
+  if (!CheckData(packet)) return;
 
   // Decode the packet
-  const auto decoded = DecodePacket(&(packet_msg->data[0]));
+  DecodePacket(packet);
 
   // Find the start of a new revolution
   //    If there is one, new_sweep_start will be the index of the start firing,
@@ -303,6 +353,12 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     }
 
     packet_start_time += kFiringCycleUs * (end_fir_idx - start_fir_idx);
+  }
+
+  {  // My stuff
+    const auto* my_packet =
+        reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
+    const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toSec());
   }
 }
 

@@ -5,8 +5,8 @@
 
 namespace velodyne_puck_decoder {
 
-static constexpr double deg2rad(double deg) { return deg * M_PI / 180.0; }
-static constexpr double rad2deg(double rad) { return rad * 180.0 / M_PI; }
+static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }
+static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }
 
 /// All 16 lasers are fired and recharged every 55.296 us.
 /// The time between firings is 2.304 us.
@@ -69,20 +69,22 @@ inline constexpr int LaserId2Index(int id) {
   return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
 }
 
-// Pre-compute the sine and cosine for the altitude angles.
+static constexpr uint16_t kMaxRawAzimuth = 35999;
+static constexpr float kAzimuthResolution = 0.01;
+
 static constexpr float kMinElevation = deg2rad(-15.0);
 static constexpr float kMaxElevation = deg2rad(15.0);
 static constexpr float kDeltaElevation =
     (kMaxElevation - kMinElevation) / (kFiringsPerFiringSequence - 1);
 
-inline constexpr float Azimuth(uint16_t raw_azimuth) {
+inline constexpr float Azimuth(uint16_t raw) {
   // According to the user manual,
-  return deg2rad(static_cast<float>(raw_azimuth) / 100.0);
+  return deg2rad(static_cast<float>(raw) * kAzimuthResolution);
 }
 
 /// p55 9.3.1.2
-inline constexpr float Distance(uint16_t raw_distance) {
-  return static_cast<float>(raw_distance) * kDistanceResolution;
+inline constexpr float Distance(uint16_t raw) {
+  return static_cast<float>(raw) * kDistanceResolution;
 }
 
 /// p51 8.3.1

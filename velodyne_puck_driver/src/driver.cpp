@@ -64,7 +64,8 @@ VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
   // packet rate.
   //  const double diag_freq = 300000.0 / (12 * 32);
 
-  // 8.2.1 Data Packet Rate There are 24 firing cycles in a data packet.
+  // 8.2.1 Data Packet Rate
+  // There are 24 firing cycles in a data packet.
   // 24 x 55.296 μs = 1.327 ms is the accumulation delay per packet.
   // 1 packet/1.327 ms = 753.5 packets/second
   const double diag_freq = kPacketsPerSecond;
@@ -205,6 +206,8 @@ int VelodynePuckDriver::ReadPacket(VelodynePacket &packet) const {
   // Average the times at which we begin and end reading.  Use that to
   // estimate when the scan occurred.
   const auto time_after = ros::Time::now().toSec();
+  // TODO: check this time and decide what to do
+  ROS_INFO("time: %f", time_after - time_before);
   packet.stamp = ros::Time((time_after + time_before) / 2.0);
 
   return 0;
