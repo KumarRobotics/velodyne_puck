@@ -26,15 +26,15 @@
 #include <sensor_msgs/PointCloud2.h>
 
 #include <pcl/point_types.h>
+#include <opencv2/core/mat.hpp>
 
-namespace velodyne_puck_decoder {
+namespace velodyne_puck {
 
 using PointT = pcl::PointXYZI;
 using CloudT = pcl::PointCloud<PointT>;
-using velodyne_puck_msgs::VelodynePacket;
+using velodyne_puck::VelodynePacket;
 
-VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
-                                         const ros::NodeHandle& pn)
+Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
     : nh(n), pnh(pn), it(pn) {
   pnh.param("min_range", min_range, 0.5);
   pnh.param("max_range", max_range, 100.0);
@@ -43,15 +43,14 @@ VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
   pnh.param<std::string>("frame_id", frame_id, "velodyne");
   ROS_INFO("Velodyne frame_id: %s", frame_id.c_str());
 
-  packet_sub = pnh.subscribe<VelodynePacket>(
-      "packet", 100, &VelodynePuckDecoder::PacketCb, this);
+  packet_sub =
+      pnh.subscribe<VelodynePacket>("packet", 100, &Decoder::PacketCb, this);
 
   cloud_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
   camera_pub = it.advertiseCamera("image", 10);
 }
 
-VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
-    const Packet* packet, double time) {
+Decoder::Decoded Decoder::DecodePacket(const Packet* packet, double time) {
   // Azimuth is clockwise, which is absurd
   // ^ y
   // | a /
@@ -143,7 +142,7 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
   return decoded;
 }
 
-void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
+void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   const auto* my_packet =
       reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
 
@@ -189,7 +188,7 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   }
 }
 
-VelodynePuckDecoder::RangeImage VelodynePuckDecoder::ToRangeImage(
+Decoder::RangeImage Decoder::ToRangeImage(
     const std::vector<TimedFiringSequence>& tfseqs) const {
   std_msgs::Header header;
   header.stamp = ros::Time(tfseqs[0].time);
@@ -234,11 +233,11 @@ VelodynePuckDecoder::RangeImage VelodynePuckDecoder::ToRangeImage(
   return std::make_pair(cv_image.toImageMsg(), cinfo_msg);
 }
 
-void VelodynePuckDecoder::PublishImage(const RangeImage& range_image) {
+void Decoder::PublishImage(const RangeImage& range_image) {
   camera_pub.publish(range_image.first, range_image.second);
 }
 
-void VelodynePuckDecoder::PublishCloud(const RangeImage& range_image) {
+void Decoder::PublishCloud(const RangeImage& range_image) {
   // Here we convert range_image to point cloud and profit!!
   // TODO: handle invalid distance which is 0
   bool organized = true;
@@ -290,4 +289,4 @@ void VelodynePuckDecoder::PublishCloud(const RangeImage& range_image) {
   cloud_pub.publish(cloud);
 }
 
-}  // namespace velodyne_puck_decoder
+}  // namespace velodyne_puck

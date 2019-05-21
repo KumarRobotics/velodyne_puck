@@ -17,30 +17,26 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <opencv2/core/mat.hpp>
 
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
-#include <velodyne_puck_msgs/VelodynePacket.h>
+#include <velodyne_puck/VelodynePacket.h>
 
 #include "constants.h"
 
-namespace velodyne_puck_decoder {
-
-using velodyne_puck_msgs::VelodynePacket;
-using velodyne_puck_msgs::VelodynePacketConstPtr;
+namespace velodyne_puck {
 
 /**
  * @brief The VelodynePuckDecoder class
  */
-class VelodynePuckDecoder {
+class Decoder {
  public:
-  VelodynePuckDecoder(const ros::NodeHandle& n, const ros::NodeHandle& pn);
-  VelodynePuckDecoder(const VelodynePuckDecoder&) = delete;
-  VelodynePuckDecoder operator=(const VelodynePuckDecoder&) = delete;
+  Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn);
+  Decoder(const Decoder&) = delete;
+  Decoder operator=(const Decoder&) = delete;
 
-  using Ptr = boost::shared_ptr<VelodynePuckDecoder>;
-  using ConstPtr = boost::shared_ptr<const VelodynePuckDecoder>;
+  using Ptr = boost::shared_ptr<Decoder>;
+  using ConstPtr = boost::shared_ptr<const Decoder>;
 
   void PacketCb(const VelodynePacketConstPtr& packet_msg);
 
@@ -134,4 +130,4 @@ class VelodynePuckDecoder {
   std::vector<TimedFiringSequence> buffer_;  // buffer
 };
 
-}  // namespace velodyne_puck_decoder
+}  // namespace velodyne_puck

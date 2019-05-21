@@ -19,11 +19,11 @@
 
 #include "driver_nodelet.h"
 
-namespace velodyne_puck_driver {
+namespace velodyne_puck {
 
-VelodynePuckDriverNodelet::VelodynePuckDriverNodelet() : running(false) {}
+DriverNodelet::DriverNodelet() : running(false) {}
 
-VelodynePuckDriverNodelet::~VelodynePuckDriverNodelet() {
+DriverNodelet::~DriverNodelet() {
   if (running) {
     NODELET_INFO("shutting down driver thread");
     running = false;
@@ -32,19 +32,19 @@ VelodynePuckDriverNodelet::~VelodynePuckDriverNodelet() {
   }
 }
 
-void VelodynePuckDriverNodelet::onInit() {
+void DriverNodelet::onInit() {
   // start the driver
   velodyne_puck_driver.reset(
-      new VelodynePuckDriver(getNodeHandle(), getPrivateNodeHandle()));
+      new Driver(getNodeHandle(), getPrivateNodeHandle()));
 
   // spawn device poll thread
   running = true;
-  device_thread = boost::shared_ptr<boost::thread>(new boost::thread(
-      boost::bind(&VelodynePuckDriverNodelet::devicePoll, this)));
+  device_thread = boost::shared_ptr<boost::thread>(
+      new boost::thread(boost::bind(&DriverNodelet::devicePoll, this)));
 }
 
 /** @brief Device poll thread main loop. */
-void VelodynePuckDriverNodelet::devicePoll() {
+void DriverNodelet::devicePoll() {
   while (ros::ok()) {
     // poll device until end of file
     running = velodyne_puck_driver->Poll();
@@ -53,10 +53,7 @@ void VelodynePuckDriverNodelet::devicePoll() {
   running = false;
 }
 
-}  // namespace velodyne_puck_driver
+}  // namespace velodyne_puck
 
-// Register this plugin with pluginlib.  Names must match nodelet_velodyne.xml.
-//
 // parameters are: package, class name, class type, base class type
-PLUGINLIB_EXPORT_CLASS(velodyne_puck_driver::VelodynePuckDriverNodelet,
-                       nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(velodyne_puck::DriverNodelet, nodelet::Nodelet);

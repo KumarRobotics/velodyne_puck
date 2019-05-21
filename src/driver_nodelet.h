@@ -15,18 +15,26 @@
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <nodelet/nodelet.h>
+#include <ros/ros.h>
 
-#include "decoder_nodelet.h"
+#include "driver.h"
 
-namespace velodyne_puck_decoder {
+namespace velodyne_puck {
 
-void VelodynePuckDecoderNodelet::onInit() {
-  decoder.reset(
-      new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
-}
+class DriverNodelet : public nodelet::Nodelet {
+ public:
+  DriverNodelet();
+  ~DriverNodelet();
 
-}  // namespace velodyne_puck_decoder
+ private:
+  virtual void onInit();
+  virtual void devicePoll();
 
-PLUGINLIB_EXPORT_CLASS(velodyne_puck_decoder::VelodynePuckDecoderNodelet,
-                       nodelet::Nodelet);
+  volatile bool running;  ///< device thread is running
+  boost::shared_ptr<boost::thread> device_thread;
+
+  Driver::Ptr velodyne_puck_driver;  ///< driver implementation class
+};
+
+}  // namespace velodyne_puck

@@ -2,9 +2,7 @@
   <arg name="frame_id" default="velodyne"/>
   <arg name="cloud" default="cloud"/>
 
-  <!-- <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/> -->
-
-  <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet" args="load velodyne_puck_decoder/VelodynePuckDecoderNodelet
+  <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet" args="load velodyne_puck/DecoderNodelet
     velodyne_puck_nodelet_manager" output="screen">
     <param name="frame_id" value="$(arg frame_id)"/>
 
@@ -12,10 +10,7 @@
     <param name="max_range" value="100.0"/>
 
     <remap from="~packet" to="packet"/>
-    <remap from="~sweep" to="sweep"/>
-
     <remap from="~cloud" to="$(arg cloud)"/>
-    <remap from="~cloud_new" to="cloud_new"/>
     <remap from="~image" to="image"/>
     <remap from="~cinfo" to="cinfo"/>
   </node>

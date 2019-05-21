@@ -3,7 +3,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace velodyne_puck_decoder {
+namespace velodyne_puck {
 
 static constexpr float kTau = M_PI * 2;
 static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }

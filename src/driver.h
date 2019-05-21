@@ -23,22 +23,20 @@
 #include <diagnostic_updater/publisher.h>
 #include <ros/ros.h>
 
-#include <velodyne_puck_msgs/VelodynePacket.h>
+#include <velodyne_puck/VelodynePacket.h>
 
-namespace velodyne_puck_driver {
-
-using velodyne_puck_msgs::VelodynePacket;
+namespace velodyne_puck {
 
 /**
  * @brief The VelodynePuckDriver class
  */
-class VelodynePuckDriver {
+class Driver {
  public:
-  VelodynePuckDriver(const ros::NodeHandle& n, const ros::NodeHandle& pn);
-  ~VelodynePuckDriver();
+  Driver(const ros::NodeHandle& n, const ros::NodeHandle& pn);
+  ~Driver();
 
-  using Ptr = boost::shared_ptr<VelodynePuckDriver>;
-  using ConstPtr = boost::shared_ptr<const VelodynePuckDriver>;
+  using Ptr = boost::shared_ptr<Driver>;
+  using ConstPtr = boost::shared_ptr<const Driver>;
 
   bool Poll();
 
@@ -64,4 +62,4 @@ class VelodynePuckDriver {
   double diag_max_freq;
 };
 
-}  // namespace velodyne_puck_driver
+}  // namespace velodyne_puck

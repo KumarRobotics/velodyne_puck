@@ -26,7 +26,7 @@
 
 #include "driver.h"
 
-namespace velodyne_puck_driver {
+namespace velodyne_puck {
 
 /// Constants
 static constexpr uint16_t kUdpPort = 2368;
@@ -43,8 +43,7 @@ static constexpr double kDelayPerPacketUs =
 static constexpr double kPacketsPerSecond = 1e6 / kDelayPerPacketUs;
 
 /// VelodynePuckDriver
-VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
-                                       const ros::NodeHandle &pn)
+Driver::Driver(const ros::NodeHandle &n, const ros::NodeHandle &pn)
     : nh(n), pnh(pn) {
   ROS_INFO("packet size: %zu", kPacketSize);
   pnh.param("device_ip", device_ip_str, std::string("192.168.1.201"));
@@ -88,7 +87,7 @@ VelodynePuckDriver::VelodynePuckDriver(const ros::NodeHandle &n,
   ROS_INFO("Successfully opened UDP Port at %s", device_ip_str.c_str());
 }
 
-VelodynePuckDriver::~VelodynePuckDriver() {
+Driver::~Driver() {
   if (close(socket_id)) {
     ROS_INFO("Close socket %d at %s", socket_id, device_ip_str.c_str());
   } else {
@@ -97,7 +96,7 @@ VelodynePuckDriver::~VelodynePuckDriver() {
   }
 }
 
-bool VelodynePuckDriver::OpenUdpPort() {
+bool Driver::OpenUdpPort() {
   socket_id = socket(PF_INET, SOCK_DGRAM, 0);
   if (socket_id == -1) {
     perror("socket");
@@ -126,7 +125,7 @@ bool VelodynePuckDriver::OpenUdpPort() {
   return true;
 }
 
-int VelodynePuckDriver::ReadPacket(VelodynePacket &packet) const {
+int Driver::ReadPacket(VelodynePacket &packet) const {
   const auto time_before = ros::Time::now();
 
   struct pollfd fds[1];
@@ -217,7 +216,7 @@ int VelodynePuckDriver::ReadPacket(VelodynePacket &packet) const {
   return 0;
 }
 
-bool VelodynePuckDriver::Poll() {
+bool Driver::Poll() {
   auto packet = boost::make_shared<VelodynePacket>();
 
   while (true) {
@@ -239,4 +238,4 @@ bool VelodynePuckDriver::Poll() {
   return true;
 }
 
-}  // namespace velodyne_puck_driver
+}  // namespace velodyne_puck

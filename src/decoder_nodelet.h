@@ -14,28 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
  */
+#pragma once
 
 #include <nodelet/nodelet.h>
 #include <ros/ros.h>
 
-#include "driver.h"
+#include "decoder.h"
 
-namespace velodyne_puck_driver {
+namespace velodyne_puck {
 
-class VelodynePuckDriverNodelet : public nodelet::Nodelet {
+class DecoderNodelet : public nodelet::Nodelet {
  public:
-  VelodynePuckDriverNodelet();
-  ~VelodynePuckDriverNodelet();
+  DecoderNodelet() {}
+  ~DecoderNodelet() {}
 
  private:
   virtual void onInit();
-  virtual void devicePoll();
-
-  volatile bool running;  ///< device thread is running
-  boost::shared_ptr<boost::thread> device_thread;
-
-  VelodynePuckDriver::Ptr
-      velodyne_puck_driver;  ///< driver implementation class
+  Decoder::Ptr decoder;
 };
 
-}  // namespace velodyne_puck_driver
+}  //  namespace velodyne_puck_decoder
