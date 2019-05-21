@@ -2,9 +2,11 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace velodyne_puck {
 
+static constexpr auto kPclNaN = std::numeric_limits<float>::quiet_NaN();
 static constexpr float kTau = M_PI * 2;
 static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }
 static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }
@@ -12,8 +14,6 @@ static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }
 // Raw Velodyne packet constants and structures.
 static constexpr int kPointBytes = 3;
 static constexpr int kPointsPerBlock = 32;
-static constexpr int kPointBytesPerBlock =
-    (kPointBytes * kPointsPerBlock);  // 96
 
 // According to Bruce Hall DISTANCE_MAX is 65.0, but we noticed
 // valid packets with readings up to 130.0.
@@ -65,4 +65,4 @@ inline constexpr float AzimuthResolutionDegree(int rpm) {
   return rpm / 60.0 * 360.0 * kFiringCycleUs / 1e6;
 }
 
-}  // namespace velodyne_puck_decoder
+}  // namespace velodyne_puck

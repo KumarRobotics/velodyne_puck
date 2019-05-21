@@ -50,7 +50,8 @@ Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
   camera_pub = it.advertiseCamera("image", 10);
 }
 
-Decoder::Decoded Decoder::DecodePacket(const Packet* packet, double time) {
+Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
+                                       double time) const {
   // Azimuth is clockwise, which is absurd
   // ^ y
   // | a /
@@ -156,26 +157,17 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     if (tfseq.azimuth < prev_azimuth) {
       // this indicates we cross the 0 azimuth angle
       // we are ready to publish this
-      ROS_INFO("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
-               rad2deg(prev_azimuth));
-      ROS_INFO("buffer size: %zu", buffer_.size());
+      ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
+                rad2deg(prev_azimuth));
+      ROS_DEBUG("buffer size: %zu", buffer_.size());
 
       if (buffer_.empty()) continue;
 
-      {
-        const auto time1 = ros::Time::now();
-        if (camera_pub.getNumSubscribers() > 0 ||
-            cloud_pub.getNumSubscribers() > 0) {
-          const auto range_image = ToRangeImage(buffer_);
-          if (camera_pub.getNumSubscribers()) {
-            PublishImage(range_image);
-          }
-          if (cloud_pub.getNumSubscribers()) {
-            PublishCloud(range_image);
-          }
-        }
-        const auto time2 = ros::Time::now();
-        ROS_INFO("time for pub: %f", time2.toSec() - time1.toSec());
+      if (camera_pub.getNumSubscribers() > 0 ||
+          cloud_pub.getNumSubscribers() > 0) {
+        const auto range_image = ToRangeImage(buffer_);
+        if (camera_pub.getNumSubscribers()) PublishImage(range_image);
+        if (cloud_pub.getNumSubscribers()) PublishCloud(range_image);
       }
 
       buffer_.clear();
@@ -196,7 +188,7 @@ Decoder::RangeImage Decoder::ToRangeImage(
 
   cv::Mat image =
       cv::Mat::zeros(kFiringsPerFiringSequence, tfseqs.size(), CV_8UC3);
-  ROS_INFO("image size: %d x %d", image.rows, image.cols);
+  ROS_DEBUG("image size: %d x %d", image.rows, image.cols);
 
   sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
   cinfo_msg->header = header;
@@ -237,10 +229,8 @@ void Decoder::PublishImage(const RangeImage& range_image) {
   camera_pub.publish(range_image.first, range_image.second);
 }
 
-void Decoder::PublishCloud(const RangeImage& range_image) {
+void Decoder::PublishCloud(const RangeImage& range_image, bool organized) {
   // Here we convert range_image to point cloud and profit!!
-  // TODO: handle invalid distance which is 0
-  bool organized = true;
 
   CloudT::Ptr cloud = boost::make_shared<CloudT>();
 
@@ -264,20 +254,27 @@ void Decoder::PublishCloud(const RangeImage& range_image) {
       TwoBytes b2;
       b2.u8[0] = data[0];
       b2.u8[1] = data[1];
+
+      const auto raw_d = static_cast<float>(b2.u16);
       const auto d = static_cast<float>(b2.u16) * kDistanceResolution;
 
-      // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
-      const auto x = d * cos_omega * std::sin(alpha);
-      const auto y = d * cos_omega * std::cos(alpha);
-      const auto z = d * sin_omega;
-
-      // Make x point forward and y point left, thus 0 azimuth is at x = 0 and
-      // goes clockwise
       PointT p;
-      p.x = y;
-      p.y = -x;
-      p.z = z;
-      p.intensity = data[2];
+      if (d == 0) {
+        // Invalid point
+        p.x = p.y = p.z = kPclNaN;
+      } else {
+        // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
+        const auto x = d * cos_omega * std::sin(alpha);
+        const auto y = d * cos_omega * std::cos(alpha);
+        const auto z = d * sin_omega;
+
+        // Make x point forward and y point left, thus 0 azimuth is at x = 0 and
+        // goes clockwise
+        p.x = y;
+        p.y = -x;
+        p.z = z;
+        p.intensity = data[2];
+      }
       cloud->points.push_back(p);
     }
   }
@@ -285,7 +282,7 @@ void Decoder::PublishCloud(const RangeImage& range_image) {
   cloud->width = image.cols;
   cloud->height = image.rows;
 
-  ROS_INFO("number of points in cloud: %zu", cloud->size());
+  ROS_DEBUG("number of points in cloud: %zu", cloud->size());
   cloud_pub.publish(cloud);
 }
 

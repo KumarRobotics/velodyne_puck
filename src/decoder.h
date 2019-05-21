@@ -101,7 +101,7 @@ class Decoder {
     uint8_t u8[2];
   };
 
-  Decoded DecodePacket(const Packet* packet, double time);
+  Decoded DecodePacket(const Packet* packet, double time) const;
 
   using RangeImage =
       std::pair<sensor_msgs::ImagePtr, sensor_msgs::CameraInfoPtr>;
@@ -109,7 +109,7 @@ class Decoder {
   RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
 
   void PublishImage(const RangeImage& range_image);
-  void PublishCloud(const RangeImage& range_image);
+  void PublishCloud(const RangeImage& range_image, bool organized = true);
 
   // Configuration parameters
   double min_range;
