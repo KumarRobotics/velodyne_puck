@@ -255,7 +255,6 @@ void Decoder::PublishCloud(const RangeImage& range_image, bool organized) {
       b2.u8[0] = data[0];
       b2.u8[1] = data[1];
 
-      const auto raw_d = static_cast<float>(b2.u16);
       const auto d = static_cast<float>(b2.u16) * kDistanceResolution;
 
       PointT p;
