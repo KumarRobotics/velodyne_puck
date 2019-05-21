@@ -17,13 +17,15 @@
 
 #include "decoder.h"
 
-#include <pcl/point_types.h>
+#include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
+
+#include <pcl/point_types.h>
 
 namespace velodyne_puck_decoder {
 
@@ -44,7 +46,7 @@ size_t TotalPoints(const VelodyneSweep& sweep) {
 
 VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
                                          const ros::NodeHandle& pn)
-    : nh(n), pnh(pn), sweep_data(new VelodyneSweep()) {
+    : nh(n), pnh(pn), it(pn), sweep_data(new VelodyneSweep()) {
   pnh.param("min_range", min_range, 0.5);
   pnh.param("max_range", max_range, 100.0);
   ROS_INFO("min_range: %f, max_range: %f", min_range, max_range);
@@ -62,6 +64,8 @@ VelodynePuckDecoder::VelodynePuckDecoder(const ros::NodeHandle& n,
 
   sweep_pub = pnh.advertise<VelodyneSweep>("sweep", 10);
   cloud_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud", 10);
+  cloud2_pub = pnh.advertise<sensor_msgs::PointCloud2>("cloud_new", 10);
+  camera_pub = it.advertiseCamera("image", 10);
 }
 
 bool VelodynePuckDecoder::Initialize() {
@@ -202,7 +206,9 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
   // Fix azimuth for odd firing sequences
   for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
     // 1,3,5,...,23
+    // Index into decoded, hardcode 2 for now
     const auto di = bi * 2 + 1;
+    auto azimuth = decoded[di].azimuth;
 
     auto prev = di - 1;
     auto next = di + 1;
@@ -216,9 +222,10 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
     auto azimuth_prev = decoded[prev].azimuth;
     auto azimuth_next = decoded[next].azimuth;
 
-    // Angle warping here
+    // Handle angle warping
+    // Based on the fact that all raw azimuth is within 0 to 2pi
     if (azimuth_next < azimuth_prev) {
-      azimuth_next += M_PI * 2;
+      azimuth_next += kTau;
     }
 
     ROS_WARN_COND(azimuth_prev > azimuth_next,
@@ -229,10 +236,13 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
     const auto azimuth_diff_deg = rad2deg(azimuth_diff);
     ROS_WARN_COND(std::abs(azimuth_diff_deg - 0.1) > 1e-2,
                   "azimuth_diff too big: %f deg", azimuth_diff_deg);
-    decoded[di].azimuth += azimuth_diff;
-  }
+    azimuth += azimuth_diff;
+    if (azimuth > kTau) {
+      azimuth -= kTau;
+    }
 
-  // Debug print here
+    decoded[di].azimuth = azimuth;
+  }
 
   return decoded;
 }
@@ -355,10 +365,36 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     packet_start_time += kFiringCycleUs * (end_fir_idx - start_fir_idx);
   }
 
-  {  // My stuff
+  // My stuff
+  {
     const auto* my_packet =
         reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
     const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toSec());
+
+    // Check for a change of azimuth across 0
+    float prev_azimuth = buffer_.empty() ? -1 : buffer_.back().azimuth;
+    for (const auto& tfseq : decoded) {
+      if (tfseq.azimuth < prev_azimuth) {
+        // this indicates we cross the 0 azimuth angle
+        // we are ready to publish this
+        ROS_INFO("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
+                 rad2deg(prev_azimuth));
+        ROS_INFO("buffer size: %zu", buffer_.size());
+
+        if (buffer_.empty()) continue;
+
+        const auto range_image = ToRangeImage(buffer_);
+        PublishImage(range_image);
+        PublishCloud(range_image);
+
+        buffer_.clear();
+        prev_azimuth = -1;
+      } else {
+        // azimuth keep increasing so keep adding to buffer
+        buffer_.push_back(tfseq);
+        prev_azimuth = buffer_.back().azimuth;
+      }
+    }
   }
 }
 
@@ -408,6 +444,63 @@ void VelodynePuckDecoder::PublishCloud(const VelodyneSweep& sweep_msg) {
   cloud->width = cloud->size();
   cloud_pub.publish(cloud);
   ROS_DEBUG("Total cloud %zu", cloud->size());
+}
+
+VelodynePuckDecoder::RangeImage VelodynePuckDecoder::ToRangeImage(
+    const std::vector<TimedFiringSequence>& tfseqs) const {
+  std_msgs::Header header;
+  header.stamp = ros::Time(tfseqs[0].time);
+  header.frame_id = frame_id;
+
+  cv::Mat image =
+      cv::Mat::zeros(kFiringsPerFiringSequence, tfseqs.size(), CV_8UC3);
+  ROS_INFO("image size: %d x %d", image.rows, image.cols);
+
+  sensor_msgs::CameraInfoPtr cinfo_ptr(new sensor_msgs::CameraInfo);
+  cinfo_ptr->header = header;
+  cinfo_ptr->height = image.rows;
+  cinfo_ptr->width = image.cols;
+  cinfo_ptr->K[0] = kMinElevation;
+  cinfo_ptr->K[1] = kMaxElevation;
+  cinfo_ptr->K[2] = kDistanceResolution;
+  cinfo_ptr->distortion_model = "VLP16";
+  cinfo_ptr->D.reserve(image.cols);
+
+  // Unfortunately the buffer element is organized in columns, probably not very
+  // cache-friendly
+
+  for (int c = 0; c < image.cols; ++c) {
+    const auto& tfseq = tfseqs[c];
+    // D stores each azimuth angle
+    cinfo_ptr->D.push_back(tfseq.azimuth);
+
+    // Fill in image
+    for (int r = 0; r < image.rows; ++r) {
+      // NOTE:
+      // row 0 corresponds to max elevation, row 15 corresponds to min elevation
+      // hence we flip row number
+      // also data points are stored in laser ids which are interleaved
+      // See p54 table
+      const auto rr = LaserId2Index(r, true);
+      image.at<cv::Vec3b>(rr, c) =
+          *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[r])));
+      // image.at<uint16_t>(rr, c) = tfseq.sequence.points[r].distance;
+      // image.at<uint16_t>(rr, c) = tfseq.sequence.points[r].reflectivity;
+    }
+  }
+
+  cv_bridge::CvImage cv_image(header, sensor_msgs::image_encodings::BGR8,
+                              image);
+
+  return std::make_pair(cv_image.toImageMsg(), cinfo_ptr);
+}
+
+void VelodynePuckDecoder::PublishImage(const RangeImage& range_image) {
+  camera_pub.publish(range_image.first, range_image.second);
+}
+
+void VelodynePuckDecoder::PublishCloud(const RangeImage& range_image) {
+  // Here we convert range_image to point cloud and profit!!
 }
 
 }  //  namespace velodyne_puck_decoder

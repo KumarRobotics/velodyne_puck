@@ -17,7 +17,10 @@
 #pragma once
 
 #include <ros/ros.h>
+#include <opencv2/core/mat.hpp>
 
+#include <image_transport/camera_publisher.h>
+#include <image_transport/image_transport.h>
 #include <velodyne_puck_msgs/VelodynePacket.h>
 #include <velodyne_puck_msgs/VelodyneSweep.h>
 
@@ -99,6 +102,7 @@ class VelodynePuckDecoder {
   };
 
   using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
+
   /// ==========================================================================
 
   union TwoBytes {
@@ -141,8 +145,12 @@ class VelodynePuckDecoder {
   // Publish data
   void PublishCloud(const VelodyneSweep& sweep_msg);
 
-  // My version
-  void PublishCloud();
+  using RangeImage =
+      std::pair<sensor_msgs::ImagePtr, sensor_msgs::CameraInfoPtr>;
+  RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
+
+  void PublishImage(const RangeImage& range_image);
+  void PublishCloud(const RangeImage& range_image);
 
   // Check if a point is in the required range.
   bool IsPointInRange(float distance) const {
@@ -153,6 +161,7 @@ class VelodynePuckDecoder {
   double min_range;
   double max_range;
 
+  bool got_first_sweep{false};
   bool is_first_sweep{true};
   float last_azimuth{0.0};
 
@@ -162,13 +171,17 @@ class VelodynePuckDecoder {
   FiringOld firings[kFiringSequencesPerPacket];
 
   // ROS related parameters
+  std::string frame_id;
+
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
-  std::string frame_id;
+  image_transport::ImageTransport it;
 
   ros::Subscriber packet_sub;
   ros::Publisher sweep_pub;
   ros::Publisher cloud_pub;
+  ros::Publisher cloud2_pub;
+  image_transport::CameraPublisher camera_pub;
 
   velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 

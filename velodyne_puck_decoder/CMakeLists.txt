@@ -8,9 +8,10 @@ find_package(catkin REQUIRED
                         nodelet
                         pluginlib
                         sensor_msgs
-                        cv_bridge
                         pcl_ros
                         pcl_conversions
+                        cv_bridge
+                        image_transport
                         velodyne_puck_msgs)
 
 catkin_package()

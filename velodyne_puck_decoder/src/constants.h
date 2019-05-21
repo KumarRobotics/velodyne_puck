@@ -5,6 +5,7 @@
 
 namespace velodyne_puck_decoder {
 
+static constexpr float kTau = M_PI * 2;
 static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }
 static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }
 
@@ -65,8 +66,10 @@ static constexpr int kDataBlocksPerPacket = 12;
 static constexpr int kFiringSequencesPerPacket =
     kFiringSequencesPerDataBlock * kDataBlocksPerPacket;  // 24
 
-inline constexpr int LaserId2Index(int id) {
-  return id % 2 == 0 ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
+inline int LaserId2Index(int id, bool flip = false) {
+  const auto index =
+      (id % 2 == 0) ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
+  return flip ? kFiringsPerFiringSequence - 1 - index : index;
 }
 
 static constexpr uint16_t kMaxRawAzimuth = 35999;

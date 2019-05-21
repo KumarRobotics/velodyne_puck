@@ -127,7 +127,7 @@ bool VelodynePuckDriver::OpenUdpPort() {
 }
 
 int VelodynePuckDriver::ReadPacket(VelodynePacket &packet) const {
-  const auto time_before = ros::Time::now().toSec();
+  const auto time_before = ros::Time::now();
 
   struct pollfd fds[1];
   fds[0].fd = socket_id;
@@ -205,16 +205,19 @@ int VelodynePuckDriver::ReadPacket(VelodynePacket &packet) const {
 
   // Average the times at which we begin and end reading.  Use that to
   // estimate when the scan occurred.
-  const auto time_after = ros::Time::now().toSec();
-  // TODO: check this time and decide what to do
-  ROS_INFO("time: %f", time_after - time_before);
-  packet.stamp = ros::Time((time_after + time_before) / 2.0);
+  const auto time_after = ros::Time::now();
+  // Usually take around 0.0012s on my pc
+  //  ROS_INFO("time: %f", time_after - time_before);
+  //  packet.stamp = ros::Time((time_after + time_before) / 2.0);
+  // The ros velodyne driver uses average time to as the time of the packet.
+  // We just use the starting time, and the actual time is this time + some time
+  // delay of communication
+  packet.stamp = time_before;
 
   return 0;
 }
 
 bool VelodynePuckDriver::Poll() {
-  // Allocate a new shared pointer for zero-copy sharing with other nodelets.
   auto packet = boost::make_shared<VelodynePacket>();
 
   while (true) {
