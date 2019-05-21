@@ -31,7 +31,7 @@ void VelodynePuckDecoderNodelet::onInit() {
   }
 }
 
-}  // end namespace velodyne_puck_decoder
+}  // namespace velodyne_puck_decoder
 
 PLUGINLIB_EXPORT_CLASS(velodyne_puck_decoder::VelodynePuckDecoderNodelet,
                        nodelet::Nodelet);

@@ -207,6 +207,7 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
     const auto raw_azimuth = block.azimuth;
     ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
                          "Invalid raw azimuth: " << raw_azimuth);
+    ROS_WARN_COND(block.flag != UPPER_BANK, "Invalid block %d", bi);
 
     // Fill in decoded
     // for each firing sequence in the data block, 2
@@ -216,7 +217,7 @@ VelodynePuckDecoder::Decoded VelodynePuckDecoder::DecodePacket(
       auto& tfseq = decoded[di];
       // Assume all firings within each firing sequence occur at the same time
       tfseq.time = time + di * kFiringCycleUs * 1e-6;
-      tfseq.azimuth = Azimuth(block.azimuth);  // Half of the azimuth is wrong
+      tfseq.azimuth = Azimuth(block.azimuth);  // need to fix half later
       tfseq.sequence = block.sequences[fsi];
     }
   }
@@ -337,8 +338,11 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     sweep_data->header.stamp = ros::Time(sweep_start_time);
     sweep_pub.publish(sweep_data);
 
-    if (cloud_pub.getNumSubscribers() > 0) {
+    {
+      const auto time1 = ros::Time::now();
       PublishCloud(*sweep_data);
+      const auto time2 = ros::Time::now();
+      ROS_INFO("old time: %f", time2.toSec() - time1.toSec());
     }
 
     sweep_data.reset(new VelodyneSweep());
@@ -401,18 +405,21 @@ void VelodynePuckDecoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
         if (buffer_.empty()) continue;
 
-        const auto range_image = ToRangeImage(buffer_);
-        PublishImage(range_image);
-        ROS_INFO("after pub image range_image: %d %d, %zu", range_image.first->height,
-                 range_image.first->width, range_image.first->data.size());
-        PublishCloud(range_image);
+        {
+          const auto time1 = ros::Time::now();
+          const auto range_image = ToRangeImage(buffer_);
+          PublishImage(range_image);
+          PublishCloud(range_image);
+          const auto time2 = ros::Time::now();
+          ROS_INFO("time for pub: %f", time2.toSec() - time1.toSec());
+        }
 
         buffer_.clear();
         prev_azimuth = -1;
       } else {
         // azimuth keep increasing so keep adding to buffer
         buffer_.push_back(tfseq);
-        prev_azimuth = buffer_.back().azimuth;
+        prev_azimuth = tfseq.azimuth;
       }
     }
   }
@@ -500,7 +507,7 @@ VelodynePuckDecoder::RangeImage VelodynePuckDecoder::ToRangeImage(
       // hence we flip row number
       // also data points are stored in laser ids which are interleaved
       // See p54 table
-      const auto rr = LaserId2Index(r, true);
+      const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
       image.at<cv::Vec3b>(rr, c) =
           *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[r])));
       // image.at<uint16_t>(rr, c) = tfseq.sequence.points[r].distance;
@@ -516,21 +523,17 @@ VelodynePuckDecoder::RangeImage VelodynePuckDecoder::ToRangeImage(
 
 void VelodynePuckDecoder::PublishImage(const RangeImage& range_image) {
   camera_pub.publish(range_image.first, range_image.second);
-  ROS_INFO("pub image range_image: %d %d, %zu", range_image.first->height,
-           range_image.first->width, range_image.first->data.size());
 }
 
 void VelodynePuckDecoder::PublishCloud(const RangeImage& range_image) {
   // Here we convert range_image to point cloud and profit!!
+  // TODO: handle invalid distance which is 0
   bool organized = true;
 
   CloudT::Ptr cloud = boost::make_shared<CloudT>();
 
-  ROS_INFO("range_image: %d %d, %zu", range_image.first->height,
-           range_image.first->width, range_image.first->data.size());
   const auto image = cv_bridge::toCvShare(range_image.first)->image;
   const auto& azimuths = range_image.second->D;
-  ROS_INFO("image size %d x %d", image.rows, image.cols);
 
   cloud->header = pcl_conversions::toPCL(range_image.first->header);
   cloud->reserve(image.total());
@@ -571,4 +574,4 @@ void VelodynePuckDecoder::PublishCloud(const RangeImage& range_image) {
   cloud2_pub.publish(cloud);
 }
 
-}  //  namespace velodyne_puck_decoder
+}  // namespace velodyne_puck_decoder
