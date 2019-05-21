@@ -32,7 +32,6 @@ namespace velodyne_puck {
 
 using PointT = pcl::PointXYZI;
 using CloudT = pcl::PointCloud<PointT>;
-using velodyne_puck::VelodynePacket;
 
 Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
     : nh(n), pnh(pn), it(pn) {
@@ -197,6 +196,7 @@ Decoder::RangeImage Decoder::ToRangeImage(
   cinfo_msg->K[0] = kMinElevation;
   cinfo_msg->K[1] = kMaxElevation;
   cinfo_msg->K[2] = kDistanceResolution;
+  cinfo_msg->K[3] = kFiringCycleUs;
   cinfo_msg->distortion_model = "VLP16";
   cinfo_msg->D.reserve(image.cols);
 

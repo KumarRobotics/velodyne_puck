@@ -1,10 +1,10 @@
-# velodyne\_puck
+# velodyne_puck
 
 [![Build Status](https://travis-ci.org/KumarRobotics/velodyne_puck.svg?branch=master)](https://travis-ci.org/KumarRobotics/velodyne_puck)
 
 ![Picture of Velodyne Puck](http://velodynelidar.com/images/products/vlp-16/puck.png)
 
-The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/). 
+The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/).
 
 The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the Lite version [here](http://velodynelidar.com/vlp-16-lite.html).
 
@@ -13,6 +13,7 @@ The major difference between this driver and the [ROS velodyne driver](http://wi
 The package is tested on Ubuntu 18.04 with ROS melodic.
 
 ## License
+
 This driver is developed based on [ROS velodyne driver](http://wiki.ros.org/velodyne_driver), which originally has the BSD license. The COPYING file is kept in this package. However, the changed files have the GNU General Public License V3.0.
 
 ## Example Usage
@@ -63,6 +64,7 @@ Stores relevant information to restore points from range image.
 K[0] = MinElevation; // -15 deg
 K[1] = MaxElevation; // 15 deg
 K[2] = DistanceResolution; // 0.002
+k[3] = FiringCycleUs; // 55.296
 D = vector<azimuth> // D.size() == image.cols
 ```
 
