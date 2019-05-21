@@ -106,8 +106,8 @@ class VelodynePuckDecoder {
   /// ==========================================================================
 
   union TwoBytes {
-    uint16_t distance;
-    uint8_t bytes[2];
+    uint16_t u16;
+    uint8_t u8[2];
   };
 
   struct RawBlock {
