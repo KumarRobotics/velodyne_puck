@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <cmath>
 
+#include "constants.h"
 #include "driver.h"
 
 namespace velodyne_puck {
@@ -31,15 +32,11 @@ namespace velodyne_puck {
 /// Constants
 static constexpr uint16_t kUdpPort = 2368;
 static constexpr size_t kPacketSize = sizeof(VelodynePacket().data);
-static_assert(kPacketSize == 1206, "Invalid packet size, should be 1206");
 static constexpr int kError = -1;
 
-// p49 8.1
-static constexpr double kFiringCycleUs = 55.296;
 // p49 8.2.1
-static constexpr int kFiringCyclePerPacket = 24;
 static constexpr double kDelayPerPacketUs =
-    kFiringCyclePerPacket * kFiringCycleUs;
+    kFiringSequencesPerPacket * kFiringCycleUs;
 static constexpr double kPacketsPerSecond = 1e6 / kDelayPerPacketUs;
 
 /// VelodynePuckDriver
