@@ -155,27 +155,24 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   for (const auto& tfseq : decoded) {
     if (tfseq.azimuth < prev_azimuth) {
       // this indicates we cross the 0 azimuth angle
-      // we are ready to publish this
+      // we are ready to publish what's in the buffer
       ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
                 rad2deg(prev_azimuth));
       ROS_DEBUG("buffer size: %zu", buffer_.size());
 
       if (buffer_.empty()) continue;
 
-      if (camera_pub.getNumSubscribers() > 0 ||
-          cloud_pub.getNumSubscribers() > 0) {
+      if (camera_pub.getNumSubscribers() || cloud_pub.getNumSubscribers()) {
         const auto range_image = ToRangeImage(buffer_);
         if (camera_pub.getNumSubscribers()) PublishImage(range_image);
         if (cloud_pub.getNumSubscribers()) PublishCloud(range_image);
       }
 
       buffer_.clear();
-      prev_azimuth = -1;
-    } else {
-      // azimuth keep increasing so keep adding to buffer
-      buffer_.push_back(tfseq);
-      prev_azimuth = tfseq.azimuth;
     }
+
+    buffer_.push_back(tfseq);
+    prev_azimuth = tfseq.azimuth;
   }
 }
 
