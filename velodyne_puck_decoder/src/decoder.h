@@ -22,7 +22,6 @@
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
 #include <velodyne_puck_msgs/VelodynePacket.h>
-#include <velodyne_puck_msgs/VelodyneSweep.h>
 
 #include "constants.h"
 
@@ -30,7 +29,6 @@ namespace velodyne_puck_decoder {
 
 using velodyne_puck_msgs::VelodynePacket;
 using velodyne_puck_msgs::VelodynePacketConstPtr;
-using velodyne_puck_msgs::VelodyneSweep;
 
 /**
  * @brief The VelodynePuckDecoder class
@@ -44,7 +42,6 @@ class VelodynePuckDecoder {
   using Ptr = boost::shared_ptr<VelodynePuckDecoder>;
   using ConstPtr = boost::shared_ptr<const VelodynePuckDecoder>;
 
-  bool Initialize();
   void PacketCb(const VelodynePacketConstPtr& packet_msg);
 
  private:
@@ -103,72 +100,24 @@ class VelodynePuckDecoder {
 
   using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
 
-  /// ==========================================================================
-
   union TwoBytes {
     uint16_t u16;
     uint8_t u8[2];
   };
 
-  struct RawBlock {
-    /// The information from 2 firing sequences of 16 lasers is contained in
-    /// each data block
-    uint16_t flag;     /// UPPER_BANK or LOWER_BANK, 2 byte flag
-    uint16_t azimuth;  /// 0-35999, divide by 100 to get degrees
-    uint8_t data[kPointBytesPerBlock];  /// 96
-  };
-
-  static_assert(sizeof(RawBlock) == 100, "DataBlock size must be 100");
-  struct RawPacket {
-    RawBlock blocks[kDataBlocksPerPacket];  // 12
-    /// The four-byte time stamp is a 32-bit unsigned integer marking the moment
-    /// of the first data point in the first firing sequcne of the first data
-    /// block
-    uint32_t stamp;
-    uint8_t factory[2];
-  } __attribute__((packed));
-  static_assert(sizeof(RawPacket) == 1206, "sizeof(RawPacket) != 1206");
-
-  struct FiringOld {
-    // Azimuth associated with the first shot within this firing.
-    float firing_azimuth;
-    float azimuth[kFiringsPerFiringSequence];
-    float distance[kFiringsPerFiringSequence];
-    float intensity[kFiringsPerFiringSequence];
-  };
-
-  // Callback function for a single velodyne packet.
-  bool CheckData(const RawPacket* packet);
-  void DecodePacket(const RawPacket* packet);
   Decoded DecodePacket(const Packet* packet, double time);
-
-  // Publish data
-  void PublishCloud(const VelodyneSweep& sweep_msg);
 
   using RangeImage =
       std::pair<sensor_msgs::ImagePtr, sensor_msgs::CameraInfoPtr>;
+  /// Convert firing sequences to range image
   RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
 
   void PublishImage(const RangeImage& range_image);
   void PublishCloud(const RangeImage& range_image);
 
-  // Check if a point is in the required range.
-  bool IsPointInRange(float distance) const {
-    return distance >= min_range && distance <= max_range;
-  }
-
   // Configuration parameters
   double min_range;
   double max_range;
-
-  bool got_first_sweep{false};
-  bool is_first_sweep{true};
-  float last_azimuth{0.0};
-
-  double sweep_start_time{0.0};
-  double packet_start_time{0.0};
-
-  FiringOld firings[kFiringSequencesPerPacket];
 
   // ROS related parameters
   std::string frame_id;
@@ -180,10 +129,7 @@ class VelodynePuckDecoder {
   ros::Subscriber packet_sub;
   ros::Publisher sweep_pub;
   ros::Publisher cloud_pub;
-  ros::Publisher cloud2_pub;
   image_transport::CameraPublisher camera_pub;
-
-  velodyne_puck_msgs::VelodyneSweepPtr sweep_data;
 
   std::vector<TimedFiringSequence> buffer_;  // buffer
 };

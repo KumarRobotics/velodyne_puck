@@ -24,11 +24,6 @@ namespace velodyne_puck_decoder {
 void VelodynePuckDecoderNodelet::onInit() {
   decoder.reset(
       new VelodynePuckDecoder(getNodeHandle(), getPrivateNodeHandle()));
-
-  if (!decoder->Initialize()) {
-    ROS_ERROR("Cannot initialize the velodyne puck decoder...");
-    return;
-  }
 }
 
 }  // namespace velodyne_puck_decoder
