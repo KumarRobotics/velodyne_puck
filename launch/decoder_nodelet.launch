@@ -12,7 +12,7 @@
     <remap from="~packet" to="packet"/>
     <remap from="~cloud" to="$(arg cloud)"/>
     <remap from="~image" to="image"/>
-    <remap from="~cinfo" to="cinfo"/>
+    <remap from="~camera_info" to="camera_info"/>
   </node>
 
 </launch>

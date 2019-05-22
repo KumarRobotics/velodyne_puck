@@ -129,8 +129,10 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
 
     const auto azimuth_diff = (azimuth_next - azimuth_prev) / 2.0;
     const auto azimuth_diff_deg = rad2deg(azimuth_diff);
-    ROS_WARN_COND(std::abs(azimuth_diff_deg - 0.1) > 1e-2,
+
+    ROS_WARN_COND(std::abs(azimuth_diff_deg - 0.1) > 1e-1,
                   "azimuth_diff too big: %f deg", azimuth_diff_deg);
+
     azimuth += azimuth_diff;
     if (azimuth > kTau) {
       azimuth -= kTau;
