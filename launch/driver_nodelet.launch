@@ -1,0 +1,10 @@
+<launch>
+  <arg name="device_ip" default="192.168.1.201"/>
+
+  <node pkg="nodelet" type="nodelet" name="velodyne_puck_driver_nodelet" args="load velodyne_puck/DriverNodelet
+    velodyne_puck_nodelet_manager">
+    <param name="device_ip" type="string" value="$(arg device_ip)"/>
+    <remap from="~packet" to="packet"/>
+  </node>
+
+</launch>

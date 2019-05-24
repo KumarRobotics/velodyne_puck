@@ -1,25 +1,20 @@
-# velodyne\_puck
+# velodyne_puck
 
 [![Build Status](https://travis-ci.org/KumarRobotics/velodyne_puck.svg?branch=master)](https://travis-ci.org/KumarRobotics/velodyne_puck)
 
 ![Picture of Velodyne Puck](http://velodynelidar.com/images/products/vlp-16/puck.png)
 
-The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/). The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the LTE version [here](http://velodynelidar.com/vlp-16-lite.html).
+The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/).
 
-The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth.
+The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the Lite version [here](http://velodynelidar.com/vlp-16-lite.html).
 
-The package is tested on Ubuntu 14.04 with ROS indigo.
+The major difference between this driver and the [ROS velodyne driver](http://wiki.ros.org/velodyne_driver) is that the start of each revolution is detected using azimuth. Also publish a range image.
+
+The package is tested on Ubuntu 18.04 with ROS melodic.
 
 ## License
+
 This driver is developed based on [ROS velodyne driver](http://wiki.ros.org/velodyne_driver), which originally has the BSD license. The COPYING file is kept in this package. However, the changed files have the GNU General Public License V3.0.
-
-## Compling
-This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compling a catkin package will work.
-
-```
-cd your_work_space
-catkin_make --pkg velodyne_puck_driver velodyne_puck_decoder --cmake-args -DCMAKE_BUILD_TYPE=Release
-```
 
 ## Example Usage
 
@@ -31,13 +26,9 @@ catkin_make --pkg velodyne_puck_driver velodyne_puck_decoder --cmake-args -DCMAK
 
 By default, the IP address of the device is 192.168.1.201.
 
-`frame_id` (`string`, `default: velodyne`)
-
-The frame ID entry for the sent messages.
-
 **Published Topics**
 
-`velodyne_packets` (`velodyne_puck_msgs/VelodynePuckPacket`)
+`packet` (`velodyne_puck/VelodynePacket`)
 
 Each message corresponds to a velodyne packet sent by the device through the Ethernet. For more details on the definition of the packet, please refer to the [user manual](http://velodynelidar.com/docs/manuals/63-9243%20Rev%20B%20User%20Manual%20and%20Programming%20Guide,VLP-16.pdf).
 
@@ -51,36 +42,38 @@ Each message corresponds to a velodyne packet sent by the device through the Eth
 
 Points outside this range will be removed.
 
-`frequency` (`frequency`, `20.0`)
+`frame_id` (`string`, `velodyne`)
 
-Note that the driver does not change the frequency of the sensor. If needed, the RPM of the sensor should be set through the brower (see [user manual](http://velodynelidar.com/docs/manuals/63-9243%20Rev%20B%20User%20Manual%20and%20Programming%20Guide,VLP-16.pdf) for more details). And the `frequency` parameter in the launch file should be set accordingly.
-
-`publish_point_cloud` (`bool`, `false`)
-
-If set to true, the decoder will additionally send out a local point cloud consisting of the points in each revolution.
+Will be used as namespace for all nodes and msgs
 
 **Published Topics**
 
-`velodyne_sweep` (`velodyne_puck_msgs/VelodynePuckSweep`)
+`image` (`sensor_msgs/Image`)
 
-The message arranges the points within each sweep based on its scan index and azimuth.
+The range image is encoded as a BGR8 image, since the data point from the device contains 3 bytes, 2 for distance and 1 for intensity.
 
-`velodyne_point_cloud` (`sensor_msgs/PointCloud2`)
+row 0 ~ 15 in the image correspond to lasers from top to bottom, as opposed to bottom to top for visualization purposes.
 
-This is only published when the `publish_point_cloud` is set to `true` in the launch file.
+pixels in each row just contain those 3 bytes.
+
+`cinfo` (`sensor_msgs/CameraInfo`)
+
+Stores relevant information to restore points from range image.
+
+```
+K[0] = MinElevation; // -15 deg
+K[1] = MaxElevation; // 15 deg
+K[2] = DistanceResolution; // 0.002
+k[3] = FiringCycleUs; // 55.296
+D = vector<azimuth> // D.size() == image.cols
+```
+
+`cloud` (`sensor_msgs/PointCloud2`)
+
+An organized point cloud, where invalid points are filled with NaNs.
 
 **Node**
 
 ```
-roslauch velodyne_puck_decoder velodyne_puck_decoder_nodelet.launch
+roslauch velodyne_puck run.launch driver:=true device_ip:=192.168.1.201
 ```
-
-Note that this launch file launches both the driver and the decoder, which is the only launch file needed to be used.
-
-
-## FAQ
-
-
-## Bug Report
-
-Prefer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.

@@ -1,0 +1,14 @@
+<library path="lib/libvelodyne_puck">
+  <class name="velodyne_puck/DriverNodelet" type="velodyne_puck::DriverNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      Read from socket and converts stream into velodyne packets 
+    </description>
+  </class>
+
+  <class name="velodyne_puck/DecoderNodelet" type="velodyne_puck::DecoderNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      Aggregates points from multiple packets, publish range image and/or point cloud
+    </description>
+  </class>
+</library>
+
