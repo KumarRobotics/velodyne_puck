@@ -6,6 +6,8 @@
   <arg name="driver" default="true"/>
   <!-- name of the output cloud -->
   <arg name="cloud" default="cloud"/>
+  <arg name="organized" default="true"/>
+  <arg name="max_range" default="100.0"/>
 
   <group ns="$(arg frame_id)">
     <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/>
@@ -17,6 +19,8 @@
     <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch">
       <arg name="frame_id" value="$(arg frame_id)"/>
       <arg name="cloud" value="$(arg cloud)"/>
+      <arg name="organized" value="$(arg organized)"/>
+      <arg name="max_range" value="$(arg max_range)"/>
     </include>
   </group>
 

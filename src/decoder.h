@@ -109,11 +109,12 @@ class Decoder {
   RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
 
   void PublishImage(const RangeImage& range_image);
-  void PublishCloud(const RangeImage& range_image, bool organized = true);
+  void PublishCloud(const RangeImage& range_image);
 
   // Configuration parameters
   double min_range;
   double max_range;
+  bool organized;
 
   // ROS related parameters
   std::string frame_id;

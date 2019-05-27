@@ -25,9 +25,6 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <pcl/point_types.h>
-#include <opencv2/core/mat.hpp>
-
 namespace velodyne_puck {
 
 using PointT = pcl::PointXYZI;
@@ -37,7 +34,11 @@ Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
     : nh(n), pnh(pn), it(pn) {
   pnh.param("min_range", min_range, 0.5);
   pnh.param("max_range", max_range, 100.0);
+  ROS_ASSERT_MSG(min_range <= max_range, "min_range > max_range");
   ROS_INFO("min_range: %f, max_range: %f", min_range, max_range);
+
+  pnh.param("organized", organized, true);
+  ROS_INFO("publish organized cloud: %s", organized ? "true" : "false");
 
   pnh.param<std::string>("frame_id", frame_id, "velodyne");
   ROS_INFO("Velodyne frame_id: %s", frame_id.c_str());
@@ -64,13 +65,13 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   if (!(return_mode == 55 || return_mode == 56)) {
     ROS_ERROR(
         "return mode must be Strongest (55) or Last Return (56), "
-        "instead got %u",
+        "instead got (%u)",
         return_mode);
     ros::shutdown();
   }
   const auto product_id = packet->factory[1];
   if (product_id != 34) {
-    ROS_ERROR("product id must be VLP-16 or Puck Lite (34), instead got %u",
+    ROS_ERROR("product id must be VLP-16 or Puck Lite (34), instead got (%u)",
               product_id);
     ros::shutdown();
   }
@@ -208,11 +209,10 @@ Decoder::RangeImage Decoder::ToRangeImage(
 
     // Fill in image
     for (int r = 0; r < image.rows; ++r) {
-      // NOTE:
-      // row 0 corresponds to max elevation, row 15 corresponds to min elevation
-      // hence we flip row number
-      // also data points are stored in laser ids which are interleaved
-      // See p54 table
+      // row 0 corresponds to max elevation (highest), row 15 corresponds to
+      // min elevation (lowest) hence we flip row number
+      // also data points are stored in laser ids which are interleaved, so we
+      // need to convert to index first. See p54 table
       const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
       image.at<cv::Vec3b>(rr, c) =
           *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[r])));
@@ -228,7 +228,7 @@ void Decoder::PublishImage(const RangeImage& range_image) {
   camera_pub.publish(range_image.first, range_image.second);
 }
 
-void Decoder::PublishCloud(const RangeImage& range_image, bool organized) {
+void Decoder::PublishCloud(const RangeImage& range_image) {
   // Here we convert range_image to point cloud and profit!!
 
   CloudT::Ptr cloud = boost::make_shared<CloudT>();
@@ -257,28 +257,36 @@ void Decoder::PublishCloud(const RangeImage& range_image, bool organized) {
       const auto d = static_cast<float>(b2.u16) * kDistanceResolution;
 
       PointT p;
-      if (d == 0) {
-        // Invalid point
-        p.x = p.y = p.z = kPclNaN;
+      if (d <= min_range || d >= max_range) {
+        if (organized) {
+          p.x = p.y = p.z = kPclNaN;
+          cloud->points.push_back(p);
+        }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
+        // Make x point forward and y point left, thus 0 azimuth is at x = 0 and
+        // goes clockwise
         const auto x = d * cos_omega * std::sin(alpha);
         const auto y = d * cos_omega * std::cos(alpha);
         const auto z = d * sin_omega;
 
-        // Make x point forward and y point left, thus 0 azimuth is at x = 0 and
-        // goes clockwise
         p.x = y;
         p.y = -x;
         p.z = z;
         p.intensity = data[2];
+
+        cloud->points.push_back(p);
       }
-      cloud->points.push_back(p);
     }
   }
 
-  cloud->width = image.cols;
-  cloud->height = image.rows;
+  if (organized) {
+    cloud->width = image.cols;
+    cloud->height = image.rows;
+  } else {
+    cloud->width = cloud->size();
+    cloud->height = 1;
+  }
 
   ROS_DEBUG("number of points in cloud: %zu", cloud->size());
   cloud_pub.publish(cloud);
