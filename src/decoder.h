@@ -20,11 +20,18 @@
 
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
+#include <pcl_ros/point_cloud.h>
 #include <velodyne_puck/VelodynePacket.h>
 
 #include "constants.h"
 
 namespace velodyne_puck {
+
+using PointT = pcl::PointXYZI;
+using CloudT = pcl::PointCloud<PointT>;
+CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
+                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg,
+                    bool organized, float min_range, float max_range);
 
 /**
  * @brief The VelodynePuckDecoder class
@@ -96,38 +103,30 @@ class Decoder {
 
   using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
 
-  union TwoBytes {
-    uint16_t u16;
-    uint8_t u8[2];
-  };
-
   Decoded DecodePacket(const Packet* packet, double time) const;
 
-  using RangeImage =
-      std::pair<sensor_msgs::ImagePtr, sensor_msgs::CameraInfoPtr>;
   /// Convert firing sequences to range image
-  RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
+  sensor_msgs::ImagePtr ToRangeImage(
+      const std::vector<TimedFiringSequence>& tfseqs,
+      sensor_msgs::CameraInfo& cinfo) const;
 
-  void PublishImage(const RangeImage& range_image);
-  void PublishCloud(const RangeImage& range_image);
+  void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
+                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
   // Configuration parameters
-  double min_range;
-  double max_range;
-  bool organized;
+  double min_range_;
+  double max_range_;
+  bool organized_;
 
   // ROS related parameters
-  std::string frame_id;
-
-  ros::NodeHandle nh;
-  ros::NodeHandle pnh;
-  image_transport::ImageTransport it;
-
-  ros::Subscriber packet_sub;
-  ros::Publisher sweep_pub;
-  ros::Publisher cloud_pub;
-  image_transport::CameraPublisher camera_pub;
-
+  std::string frame_id_;
+  ros::NodeHandle nh_;
+  ros::NodeHandle pnh_;
+  image_transport::ImageTransport it_;
+  ros::Subscriber packet_sub_;
+  ros::Publisher sweep_pub_;
+  ros::Publisher cloud_pub_;
+  image_transport::CameraPublisher camera_pub_;
   std::vector<TimedFiringSequence> buffer_;  // buffer
 };
 
