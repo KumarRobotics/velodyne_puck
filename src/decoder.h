@@ -102,7 +102,6 @@ class Decoder {
   };
 
   using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
-
   Decoded DecodePacket(const Packet* packet, double time) const;
 
   /// Convert firing sequences to range image
@@ -112,6 +111,7 @@ class Decoder {
 
   void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
                     const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
+  void PublishBufferAndClear();
 
   // Configuration parameters
   double min_range_;

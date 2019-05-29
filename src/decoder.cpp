@@ -162,26 +162,31 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
       ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
                 rad2deg(prev_azimuth));
       ROS_DEBUG("buffer size: %zu", buffer_.size());
-
-      if (buffer_.empty()) continue;
-
-      if (camera_pub_.getNumSubscribers() || cloud_pub_.getNumSubscribers()) {
-        sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
-        auto image_msg = ToRangeImage(buffer_, *cinfo_msg);
-
-        if (camera_pub_.getNumSubscribers()) {
-          camera_pub_.publish(image_msg, cinfo_msg);
-        }
-
-        if (cloud_pub_.getNumSubscribers()) PublishCloud(image_msg, cinfo_msg);
-      }
-
-      buffer_.clear();
+      PublishBufferAndClear();
     }
 
     buffer_.push_back(tfseq);
     prev_azimuth = tfseq.azimuth;
   }
+}
+
+void Decoder::PublishBufferAndClear() {
+  if (buffer_.empty()) return;
+
+  if (camera_pub_.getNumSubscribers() || cloud_pub_.getNumSubscribers()) {
+    sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
+    auto image_msg = ToRangeImage(buffer_, *cinfo_msg);
+
+    if (camera_pub_.getNumSubscribers()) {
+      camera_pub_.publish(image_msg, cinfo_msg);
+    }
+
+    if (cloud_pub_.getNumSubscribers()) {
+      PublishCloud(image_msg, cinfo_msg);
+    }
+  }
+
+  buffer_.clear();
 }
 
 sensor_msgs::ImagePtr Decoder::ToRangeImage(

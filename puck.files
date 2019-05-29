@@ -1,6 +1,7 @@
 CMakeLists.txt
 COPYING
 README.md
+launch/debug.conf
 launch/decoder_nodelet.launch
 launch/driver_nodelet.launch
 launch/run.launch
