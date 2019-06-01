@@ -53,7 +53,7 @@ Driver::Driver(const ros::NodeHandle &n, const ros::NodeHandle &pn)
   }
 
   // ROS diagnostics
-  diagnostics.setHardwareID("Velodyne_VLP16");
+  diagnostics.setHardwareID("VLP16");
   // VLP16 publishs 0.3 million points per second.
   // Each packet contains 12 blocks. And each block
   // contains 32 points. Together provides the

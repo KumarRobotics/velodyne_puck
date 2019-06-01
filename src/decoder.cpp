@@ -26,6 +26,13 @@
 
 namespace velodyne_puck {
 
+enum Index {
+  MIN_ELEVATION,
+  MAX_ELEVATION,
+  DISTANCE_RESOLUTION,
+  FIRING_CYCLE_US
+};
+
 union TwoBytes {
   uint16_t u16;
   uint8_t u8[2];
@@ -204,10 +211,10 @@ sensor_msgs::ImagePtr Decoder::ToRangeImage(
   cinfo_msg.header = header;
   cinfo_msg.height = image.rows;
   cinfo_msg.width = image.cols;
-  cinfo_msg.K[0] = kMinElevation;
-  cinfo_msg.K[1] = kMaxElevation;
-  cinfo_msg.K[2] = kDistanceResolution;
-  cinfo_msg.K[3] = kFiringCycleUs;
+  cinfo_msg.K[Index::MIN_ELEVATION] = kMinElevation;
+  cinfo_msg.K[Index::MAX_ELEVATION] = kMaxElevation;
+  cinfo_msg.K[Index::DISTANCE_RESOLUTION] = kDistanceResolution;
+  cinfo_msg.K[Index::FIRING_CYCLE_US] = kFiringCycleUs;
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
 
@@ -230,8 +237,7 @@ sensor_msgs::ImagePtr Decoder::ToRangeImage(
     }
   }
 
-  cv_bridge::CvImage cv_image(header, sensor_msgs::image_encodings::BGR8,
-                              image);
+  cv_bridge::CvImage cv_image(header, "bgr8", image);
   return cv_image.toImageMsg();
 }
 
@@ -254,11 +260,11 @@ CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
   cloud->header = pcl_conversions::toPCL(image_msg->header);
   cloud->reserve(image.total());
 
-  const auto min_elevation = cinfo_msg->K[0];
-  const auto max_elevation = cinfo_msg->K[1];
+  const auto min_elevation = cinfo_msg->K[Index::MIN_ELEVATION];
+  const auto max_elevation = cinfo_msg->K[Index::MAX_ELEVATION];
   const auto delta_elevation =
       (max_elevation - min_elevation) / (image.rows - 1);
-  const auto distance_resolution = cinfo_msg->K[2];
+  const auto distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
 
   for (int r = 0; r < image.rows; ++r) {
     const auto* row_ptr = image.ptr<cv::Vec3b>(r);
