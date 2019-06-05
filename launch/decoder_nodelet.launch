@@ -13,6 +13,10 @@
     <param name="organized" type="bool" value="$(arg organized)"/>
 
     <remap from="~packet" to="packet"/>
+
+    <remap from="~range" to="range"/>
+    <remap from="~intensity" to="intensity"/>
+
     <remap from="~cloud" to="$(arg cloud)"/>
     <remap from="~image" to="image"/>
     <remap from="~camera_info" to="camera_info"/>
