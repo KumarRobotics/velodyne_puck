@@ -314,33 +314,35 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
   cloud->header = pcl_conversions::toPCL(image_msg->header);
   cloud->reserve(image.total());
 
-  const auto min_elevation = cinfo_msg->K[Index::MIN_ELEVATION];
-  const auto max_elevation = cinfo_msg->K[Index::MAX_ELEVATION];
-  const auto delta_elevation =
+  const float min_elevation = cinfo_msg->K[Index::MIN_ELEVATION];
+  const float max_elevation = cinfo_msg->K[Index::MAX_ELEVATION];
+  const float delta_elevation =
       (max_elevation - min_elevation) / (image.rows - 1);
-  const auto distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
+  const float distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
 
   // Precompute sin cos
-  std::vector<std::pair<double, double>> sin_cos(azimuths.size());
+  std::vector<std::pair<float, float>> sin_cos;
+  sin_cos.reserve(azimuths.size());
   for (size_t i = 0; i < azimuths.size(); ++i) {
-    sincos(azimuths[i], &(sin_cos[i].first), &(sin_cos[i].second));
+    //    sincos(azimuths[i], &(sin_cos[i].first), &(sin_cos[i].second));
+    sin_cos.emplace_back(std::sin(azimuths[i]), std::cos(azimuths[i]));
   }
 
   for (int r = 0; r < image.rows; ++r) {
     const auto* const row_ptr = image.ptr<cv::Vec3b>(r);
     // Because image row 0 is the highest laser point
-    const auto omega = max_elevation - r * delta_elevation;
+    const float omega = max_elevation - r * delta_elevation;
     const auto cos_omega = std::cos(omega);
     const auto sin_omega = std::sin(omega);
 
     for (int c = 0; c < image.cols; ++c) {
       const cv::Vec3b& data = row_ptr[c];
-      //      const auto alpha = azimuths[c];
+      // const auto alpha = azimuths[c];
 
       TwoBytes b2;
       b2.u8[0] = data[0];
       b2.u8[1] = data[1];
-      const auto d = static_cast<float>(b2.u16) * distance_resolution;
+      const float d = b2.u16 * distance_resolution;
 
       PointT p;
       if (d < min_range || d > max_range) {

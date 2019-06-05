@@ -15,6 +15,7 @@ find_package(catkin REQUIRED
                         diagnostic_updater
                         sensor_msgs
                         std_msgs)
+find_package(OpenMP)
 
 add_message_files(DIRECTORY msg FILES VelodynePacket.msg)
 generate_messages(DEPENDENCIES std_msgs)
@@ -36,7 +37,13 @@ add_library(${PROJECT_NAME}
             src/driver_nodelet.cpp
             src/decoder.cpp
             src/decoder_nodelet.cpp)
+
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} src)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
+
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS}
                  ${catkin_EXPORTED_TARGETS})
