@@ -17,6 +17,8 @@
 
 #include "decoder.h"
 
+#include <math.h>
+
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 
@@ -318,6 +320,12 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
       (max_elevation - min_elevation) / (image.rows - 1);
   const auto distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
 
+  // Precompute sin cos
+  std::vector<std::pair<double, double>> sin_cos(azimuths.size());
+  for (size_t i = 0; i < azimuths.size(); ++i) {
+    sincos(azimuths[i], &(sin_cos[i].first), &(sin_cos[i].second));
+  }
+
   for (int r = 0; r < image.rows; ++r) {
     const auto* const row_ptr = image.ptr<cv::Vec3b>(r);
     // Because image row 0 is the highest laser point
@@ -327,7 +335,7 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
 
     for (int c = 0; c < image.cols; ++c) {
       const cv::Vec3b& data = row_ptr[c];
-      const auto alpha = azimuths[c];
+      //      const auto alpha = azimuths[c];
 
       TwoBytes b2;
       b2.u8[0] = data[0];
@@ -342,8 +350,10 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
         }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
-        const auto x = d * cos_omega * std::sin(alpha);
-        const auto y = d * cos_omega * std::cos(alpha);
+        //        const auto x = d * cos_omega * std::sin(alpha);
+        //        const auto y = d * cos_omega * std::cos(alpha);
+        const auto x = d * cos_omega * sin_cos[c].first;
+        const auto y = d * cos_omega * sin_cos[c].second;
         const auto z = d * sin_omega;
 
         // original velodyne frame is x right y forward
