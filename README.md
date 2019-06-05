@@ -36,15 +36,19 @@ Each message corresponds to a velodyne packet sent by the device through the Eth
 
 **Parameters**
 
-`min_range` (`double`, `0.3`)
+`min_range` (`double`, `0.5`)
 
 `max_range` (`double`, `100.0`)
 
-Points outside this range will be removed.
+Points outside this range will be removed only in published point cloud.
+
+`organized` (`bool`, `true`)
+
+Whether to publish an organized cloud or not. Does not affect the range image.
 
 `frame_id` (`string`, `velodyne`)
 
-Will be used as namespace for all nodes and msgs
+Will be used as namespace for all nodes and messages.
 
 **Published Topics**
 
@@ -60,20 +64,29 @@ pixels in each row just contain those 3 bytes.
 
 Stores relevant information to restore points from range image.
 
+`range` (`sensor_msgs/Image`)
+
+For visualizing range image only. 
+
+`intensity` (`sensor_msgs/Image`)
+
+For visualizing intensity image only.
+
+
 ```
 K[0] = MinElevation; // -15 deg
 K[1] = MaxElevation; // 15 deg
 K[2] = DistanceResolution; // 0.002
-k[3] = FiringCycleUs; // 55.296
+k[3] = FiringCycleUs; // 55.296 us
 D = vector<azimuth> // D.size() == image.cols
 ```
 
 `cloud` (`sensor_msgs/PointCloud2`)
 
-An organized point cloud, where invalid points are filled with NaNs.
+A point cloud, where invalid points are filled with NaNs if organized and removed if not organized.
 
 **Node**
 
 ```
-roslauch velodyne_puck run.launch driver:=true device_ip:=192.168.1.201
+roslaunch velodyne_puck run.launch driver:=true device_ip:=192.168.1.201
 ```

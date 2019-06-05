@@ -1,11 +1,19 @@
 <launch>
 
-  <arg name="device_ip" default="172.16.107.201"/>
-  <arg name="frame_id" default="velodyne"/>
-  <!-- whether to run driver -->
+  <!-- driver -->
   <arg name="driver" default="true"/>
-  <!-- name of the output cloud -->
+  <arg name="device_ip" default="192.168.2.201"/>
+
+  <!-- decoder -->
+  <arg name="decoder" default="true"/>
+  <arg name="frame_id" default="velodyne"/>
   <arg name="cloud" default="cloud"/>
+  <arg name="organized" default="true"/>
+  <arg name="max_range" default="100.0"/>
+
+  <arg name="debug" default="false"/>
+  <env if="$(arg debug)" name="ROSCONSOLE_CONFIG_FILE" value="$(find velodyne_puck)/launch/debug.conf"/>
+
 
   <group ns="$(arg frame_id)">
     <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/>
@@ -14,9 +22,11 @@
       <arg name="device_ip" value="$(arg device_ip)"/>
     </include>
 
-    <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch">
+    <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch" if="$(arg decoder)">
       <arg name="frame_id" value="$(arg frame_id)"/>
       <arg name="cloud" value="$(arg cloud)"/>
+      <arg name="organized" value="$(arg organized)"/>
+      <arg name="max_range" value="$(arg max_range)"/>
     </include>
   </group>
 

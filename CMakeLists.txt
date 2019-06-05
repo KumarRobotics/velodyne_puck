@@ -19,7 +19,16 @@ find_package(catkin REQUIRED
 add_message_files(DIRECTORY msg FILES VelodynePacket.msg)
 generate_messages(DEPENDENCIES std_msgs)
 
-catkin_package()
+catkin_package(INCLUDE_DIRS
+               src
+               LIBRARIES
+               ${PROJECT_NAME}
+               CATKIN_DEPENDS
+               pcl_ros
+               cv_bridge
+               image_transport
+               sensor_msgs
+               DEPENDS)
 
 # Velodyne Puck Decoder
 add_library(${PROJECT_NAME}

@@ -20,18 +20,26 @@
 
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
+#include <pcl_ros/point_cloud.h>
 #include <velodyne_puck/VelodynePacket.h>
 
 #include "constants.h"
 
 namespace velodyne_puck {
 
-/**
- * @brief The VelodynePuckDecoder class
- */
+namespace it = image_transport;
+using PointT = pcl::PointXYZI;
+using CloudT = pcl::PointCloud<PointT>;
+
+/// Convert image and camera_info to point cloud
+CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
+                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg,
+                    bool organized, float min_range, float max_range);
+
 class Decoder {
  public:
-  Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn);
+  explicit Decoder(const ros::NodeHandle& pn);
+
   Decoder(const Decoder&) = delete;
   Decoder operator=(const Decoder&) = delete;
 
@@ -88,46 +96,45 @@ class Decoder {
                 "sizeof(Packet) != 1206");
 
   /// Decoded result
-  struct TimedFiringSequence {
+  struct FiringSequenceStamped {
     double time;
     float azimuth;  // rad [0, 2pi)
     FiringSequence sequence;
   };
 
-  using Decoded = std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
-
-  union TwoBytes {
-    uint16_t u16;
-    uint8_t u8[2];
-  };
-
+  // TODO: use vector or array?
+  using Decoded = std::array<FiringSequenceStamped, kFiringSequencesPerPacket>;
   Decoded DecodePacket(const Packet* packet, double time) const;
 
-  using RangeImage =
-      std::pair<sensor_msgs::ImagePtr, sensor_msgs::CameraInfoPtr>;
-  /// Convert firing sequences to range image
-  RangeImage ToRangeImage(const std::vector<TimedFiringSequence>& tfseqs) const;
+  /// Convert firing sequences to image data
+  sensor_msgs::ImagePtr ToImageData(
+      const std::vector<FiringSequenceStamped>& tfseqs,
+      sensor_msgs::CameraInfo& cinfo) const;
 
-  void PublishImage(const RangeImage& range_image);
-  void PublishCloud(const RangeImage& range_image, bool organized = true);
+  /// Publish
+  void PublishBufferAndClear();
+  void PublishRange(const sensor_msgs::ImageConstPtr& image_msg);
+  void PublishIntensity(const sensor_msgs::ImageConstPtr& image_msg);
+  void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
+                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
   // Configuration parameters
-  double min_range;
-  double max_range;
+  double min_range_;
+  double max_range_;
+  bool organized_;
 
   // ROS related parameters
-  std::string frame_id;
+  std::string frame_id_;
+  ros::NodeHandle pnh_;
+  it::ImageTransport it_;
+  ros::Subscriber packet_sub_;
 
-  ros::NodeHandle nh;
-  ros::NodeHandle pnh;
-  image_transport::ImageTransport it;
+  ros::Publisher cloud_pub_;
+  it::Publisher intensity_pub_;
+  it::Publisher range_pub_;
+  it::CameraPublisher camera_pub_;
 
-  ros::Subscriber packet_sub;
-  ros::Publisher sweep_pub;
-  ros::Publisher cloud_pub;
-  image_transport::CameraPublisher camera_pub;
-
-  std::vector<TimedFiringSequence> buffer_;  // buffer
+  std::vector<FiringSequenceStamped> buffer_;  // buffer
 };
 
 }  // namespace velodyne_puck
