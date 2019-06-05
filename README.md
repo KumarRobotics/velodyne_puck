@@ -64,6 +64,15 @@ pixels in each row just contain those 3 bytes.
 
 Stores relevant information to restore points from range image.
 
+`range` (`sensor_msgs/Image`)
+
+For visualizing range image only. 
+
+`intensity` (`sensor_msgs/Image`)
+
+For visualizing intensity image only.
+
+
 ```
 K[0] = MinElevation; // -15 deg
 K[1] = MaxElevation; // 15 deg
