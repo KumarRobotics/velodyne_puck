@@ -26,6 +26,8 @@
 
 namespace velodyne_puck {
 
+using namespace sensor_msgs;
+
 enum Index {
   MIN_ELEVATION,
   MAX_ELEVATION,
@@ -38,8 +40,7 @@ union TwoBytes {
   uint8_t u8[2];
 };
 
-Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
-    : nh_(n), pnh_(pn), it_(pn) {
+Decoder::Decoder(const ros::NodeHandle& pn) : pnh_(pn), it_(pn) {
   pnh_.param("min_range", min_range_, 0.5);
   pnh_.param("max_range", max_range_, 100.0);
   ROS_ASSERT_MSG(min_range_ <= max_range_, "min_range > max_range");
@@ -53,8 +54,11 @@ Decoder::Decoder(const ros::NodeHandle& n, const ros::NodeHandle& pn)
 
   packet_sub_ =
       pnh_.subscribe<VelodynePacket>("packet", 100, &Decoder::PacketCb, this);
-  cloud_pub_ = pnh_.advertise<sensor_msgs::PointCloud2>("cloud", 10);
-  camera_pub_ = it_.advertiseCamera("image", 10);
+  cloud_pub_ = pnh_.advertise<PointCloud2>("cloud", 10);
+
+  intensity_pub_ = it_.advertise("intensity", 1);
+  range_pub_ = it_.advertise("range", 1);
+  camera_pub_ = it_.advertiseCamera("image", 5);
 }
 
 Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
@@ -62,7 +66,7 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   // Azimuth is clockwise, which is absurd
   // ^ y
   // | a /
-  // |  /
+  // |--/
   // | /
   // |/
   // o ------- > x
@@ -180,31 +184,80 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 void Decoder::PublishBufferAndClear() {
   if (buffer_.empty()) return;
 
-  if (camera_pub_.getNumSubscribers() || cloud_pub_.getNumSubscribers()) {
-    sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
-    auto image_msg = ToRangeImage(buffer_, *cinfo_msg);
+  const auto t1 = ros::Time::now();
+  // Always convert to image data
+  const CameraInfoPtr cinfo_msg(new CameraInfo);
+  const auto image_msg = ToImageData(buffer_, *cinfo_msg);
 
-    if (camera_pub_.getNumSubscribers()) {
-      camera_pub_.publish(image_msg, cinfo_msg);
-    }
+  if (camera_pub_.getNumSubscribers()) {
+    camera_pub_.publish(image_msg, cinfo_msg);
+  }
 
-    if (cloud_pub_.getNumSubscribers()) {
-      PublishCloud(image_msg, cinfo_msg);
-    }
+  if (range_pub_.getNumSubscribers()) {
+    PublishRange(image_msg);
+  }
+
+  if (intensity_pub_.getNumSubscribers()) {
+    PublishIntensity(image_msg);
+  }
+
+  if (cloud_pub_.getNumSubscribers()) {
+    PublishCloud(image_msg, cinfo_msg);
   }
 
   buffer_.clear();
+
+  const auto time = (ros::Time::now() - t1).toSec();
+  ROS_DEBUG("Total time for publish: %f", time);
 }
 
-sensor_msgs::ImagePtr Decoder::ToRangeImage(
-    const std::vector<TimedFiringSequence>& tfseqs,
-    sensor_msgs::CameraInfo& cinfo_msg) const {
+void Decoder::PublishRange(const ImageConstPtr& image_msg) {
+  const auto image = cv_bridge::toCvShare(image_msg)->image;
+  cv::Mat range = cv::Mat::zeros(image.rows, image.cols, CV_16UC1);
+
+  for (int r = 0; r < image.rows; ++r) {
+    const auto* const row_ptr_image = image.ptr<cv::Vec3b>(r);
+    auto* const row_ptr_range = range.ptr<uint16_t>(r);
+
+    for (int c = 0; c < image.cols; ++c) {
+      TwoBytes b2;
+      b2.u8[0] = row_ptr_image[c][0];
+      b2.u8[1] = row_ptr_image[c][1];
+      row_ptr_range[c] = b2.u16;
+    }
+  }
+
+  range_pub_.publish(
+      cv_bridge::CvImage(image_msg->header, image_encodings::MONO16, range)
+          .toImageMsg());
+}
+
+void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
+  const auto image = cv_bridge::toCvShare(image_msg)->image;
+  cv::Mat intensity = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
+
+  for (int r = 0; r < image.rows; ++r) {
+    const auto* const row_ptr_image = image.ptr<cv::Vec3b>(r);
+    auto* const row_ptr_intensity = intensity.ptr<uint8_t>(r);
+
+    for (int c = 0; c < image.cols; ++c) {
+      row_ptr_intensity[c] = row_ptr_image[c][2];
+    }
+  }
+
+  intensity_pub_.publish(
+      cv_bridge::CvImage(image_msg->header, image_encodings::MONO8, intensity)
+          .toImageMsg());
+}
+
+ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
+                              CameraInfo& cinfo_msg) const {
   std_msgs::Header header;
-  header.stamp = ros::Time(tfseqs[0].time);
+  header.stamp = ros::Time(fseqs[0].time);
   header.frame_id = frame_id_;
 
   cv::Mat image =
-      cv::Mat::zeros(kFiringsPerFiringSequence, tfseqs.size(), CV_8UC3);
+      cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(), CV_8UC3);
   ROS_DEBUG("image size: %d x %d", image.rows, image.cols);
 
   //  sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
@@ -221,7 +274,7 @@ sensor_msgs::ImagePtr Decoder::ToRangeImage(
   // Unfortunately the buffer element is organized in columns, probably not very
   // cache-friendly
   for (int c = 0; c < image.cols; ++c) {
-    const auto& tfseq = tfseqs[c];
+    const auto& tfseq = fseqs[c];
     // D stores each azimuth angle
     cinfo_msg.D.push_back(tfseq.azimuth);
 
@@ -237,12 +290,11 @@ sensor_msgs::ImagePtr Decoder::ToRangeImage(
     }
   }
 
-  cv_bridge::CvImage cv_image(header, "bgr8", image);
-  return cv_image.toImageMsg();
+  return cv_bridge::CvImage(header, image_encodings::BGR8, image).toImageMsg();
 }
 
-void Decoder::PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
-                           const sensor_msgs::CameraInfoConstPtr& cinfo_msg) {
+void Decoder::PublishCloud(const ImageConstPtr& image_msg,
+                           const CameraInfoConstPtr& cinfo_msg) {
   const auto cloud =
       ToCloud(image_msg, cinfo_msg, organized_, min_range_, max_range_);
 
@@ -250,9 +302,9 @@ void Decoder::PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
   cloud_pub_.publish(cloud);
 }
 
-CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
-                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg,
-                    bool organized, float min_range, float max_range) {
+CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
+                    const CameraInfoConstPtr& cinfo_msg, bool organized,
+                    float min_range, float max_range) {
   CloudT::Ptr cloud(new CloudT);
   const auto image = cv_bridge::toCvShare(image_msg)->image;
   const auto& azimuths = cinfo_msg->D;
@@ -267,8 +319,8 @@ CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
   const auto distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
 
   for (int r = 0; r < image.rows; ++r) {
-    const auto* row_ptr = image.ptr<cv::Vec3b>(r);
-    // Because index 0 is actually row 15
+    const auto* const row_ptr = image.ptr<cv::Vec3b>(r);
+    // Because image row 0 is the highest laser point
     const auto omega = max_elevation - r * delta_elevation;
     const auto cos_omega = std::cos(omega);
     const auto sin_omega = std::sin(omega);
@@ -283,19 +335,20 @@ CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
       const auto d = static_cast<float>(b2.u16) * distance_resolution;
 
       PointT p;
-      if (d <= min_range || d >= max_range) {
+      if (d < min_range || d > max_range) {
         if (organized) {
           p.x = p.y = p.z = kPclNaN;
           cloud->points.push_back(p);
         }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
-        // Make x point forward and y point left, thus 0 azimuth is at x = 0 and
-        // goes clockwise
         const auto x = d * cos_omega * std::sin(alpha);
         const auto y = d * cos_omega * std::cos(alpha);
         const auto z = d * sin_omega;
 
+        // original velodyne frame is x right y forward
+        // we make x forward and y left, thus 0 azimuth is at x = 0 and
+        // goes clockwise
         p.x = y;
         p.y = -x;
         p.z = z;

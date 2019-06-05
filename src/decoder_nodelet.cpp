@@ -22,7 +22,7 @@
 namespace velodyne_puck {
 
 void DecoderNodelet::onInit() {
-  decoder.reset(new Decoder(getNodeHandle(), getPrivateNodeHandle()));
+  decoder.reset(new Decoder(getPrivateNodeHandle()));
 }
 
 }  // namespace velodyne_puck
