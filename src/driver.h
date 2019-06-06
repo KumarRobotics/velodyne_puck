@@ -22,8 +22,7 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 #include <ros/ros.h>
-
-#include <velodyne_puck/VelodynePacket.h>
+#include <velodyne_msgs/VelodynePacket.h>
 
 namespace velodyne_puck {
 
@@ -32,7 +31,7 @@ namespace velodyne_puck {
  */
 class Driver {
  public:
-  Driver(const ros::NodeHandle& n, const ros::NodeHandle& pn);
+  explicit Driver(const ros::NodeHandle& pn);
   ~Driver();
 
   using Ptr = boost::shared_ptr<Driver>;
@@ -42,7 +41,7 @@ class Driver {
 
  private:
   bool OpenUdpPort();
-  int ReadPacket(VelodynePacket& packet) const;
+  int ReadPacket(velodyne_msgs::VelodynePacket& packet) const;
 
   // Ethernet relate variables
   std::string device_ip_str;

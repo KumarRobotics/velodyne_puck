@@ -16,12 +16,11 @@
  */
 #pragma once
 
-#include <ros/ros.h>
-
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
 #include <pcl_ros/point_cloud.h>
-#include <velodyne_puck/VelodynePacket.h>
+#include <ros/ros.h>
+#include <velodyne_msgs/VelodynePacket.h>
 
 #include "constants.h"
 
@@ -46,7 +45,7 @@ class Decoder {
   using Ptr = boost::shared_ptr<Decoder>;
   using ConstPtr = boost::shared_ptr<const Decoder>;
 
-  void PacketCb(const VelodynePacketConstPtr& packet_msg);
+  void PacketCb(const velodyne_msgs::VelodynePacketConstPtr& packet_msg);
 
  private:
   /// ==========================================================================
@@ -92,7 +91,7 @@ class Decoder {
     uint32_t stamp;
     uint8_t factory[2];
   } __attribute__((packed));
-  static_assert(sizeof(Packet) == sizeof(VelodynePacket().data),
+  static_assert(sizeof(Packet) == sizeof(velodyne_msgs::VelodynePacket().data),
                 "sizeof(Packet) != 1206");
 
   /// Decoded result

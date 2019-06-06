@@ -29,6 +29,8 @@
 
 namespace velodyne_puck {
 
+using namespace velodyne_msgs;
+
 /// Constants
 static constexpr uint16_t kUdpPort = 2368;
 static constexpr size_t kPacketSize = sizeof(VelodynePacket().data);
@@ -40,8 +42,7 @@ static constexpr double kDelayPerPacketUs =
 static constexpr double kPacketsPerSecond = 1e6 / kDelayPerPacketUs;
 
 /// VelodynePuckDriver
-Driver::Driver(const ros::NodeHandle &n, const ros::NodeHandle &pn)
-    : nh(n), pnh(pn) {
+Driver::Driver(const ros::NodeHandle &pn) : pnh(pn) {
   ROS_INFO("packet size: %zu", kPacketSize);
   pnh.param("device_ip", device_ip_str, std::string("192.168.1.201"));
   ROS_INFO("device_ip: %s", device_ip_str.c_str());
@@ -214,7 +215,7 @@ int Driver::ReadPacket(VelodynePacket &packet) const {
 }
 
 bool Driver::Poll() {
-  auto packet = boost::make_shared<VelodynePacket>();
+  VelodynePacket::Ptr packet(new VelodynePacket);
 
   while (true) {
     // keep reading until full packet received
@@ -224,7 +225,6 @@ bool Driver::Poll() {
   }
 
   // publish message using time of last packet read
-  ROS_DEBUG("Publishing a full Velodyne scan.");
   packet_pub.publish(packet);
 
   // notify diagnostics that a message has been published, updating

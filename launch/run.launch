@@ -6,6 +6,7 @@
 
   <!-- decoder -->
   <arg name="decoder" default="true"/>
+  <arg name="packet" default="packet"/>
   <arg name="frame_id" default="velodyne"/>
   <arg name="cloud" default="cloud"/>
   <arg name="organized" default="true"/>
@@ -25,6 +26,7 @@
     <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch" if="$(arg decoder)">
       <arg name="frame_id" value="$(arg frame_id)"/>
       <arg name="cloud" value="$(arg cloud)"/>
+      <arg name="packet" value="$(arg packet)"/>
       <arg name="organized" value="$(arg organized)"/>
       <arg name="max_range" value="$(arg max_range)"/>
     </include>

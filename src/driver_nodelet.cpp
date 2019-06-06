@@ -34,8 +34,7 @@ DriverNodelet::~DriverNodelet() {
 
 void DriverNodelet::onInit() {
   // start the driver
-  velodyne_puck_driver.reset(
-      new Driver(getNodeHandle(), getPrivateNodeHandle()));
+  velodyne_puck_driver.reset(new Driver(getPrivateNodeHandle()));
 
   // spawn device poll thread
   running = true;

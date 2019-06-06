@@ -29,6 +29,7 @@
 namespace velodyne_puck {
 
 using namespace sensor_msgs;
+using namespace velodyne_msgs;
 
 enum Index {
   MIN_ELEVATION,
