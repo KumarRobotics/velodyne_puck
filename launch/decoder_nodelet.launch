@@ -1,16 +1,19 @@
 <launch>
-  <arg name="frame_id" default="velodyne"/>
   <arg name="cloud" default="cloud"/>
+  <arg name="packet" default="packet"/>
+
+  <arg name="frame_id" default="velodyne"/>
+  <arg name="batch_deg" default="360.0"/>
   <arg name="organized" default="true"/>
   <arg name="min_range" default="0.5"/>
   <arg name="max_range" default="100.0"/>
-  <arg name="packet" default="packet"/>
 
   <node pkg="nodelet" type="nodelet" name="velodyne_puck_decoder_nodelet" args="load velodyne_puck/DecoderNodelet
     velodyne_puck_nodelet_manager" output="screen">
     <param name="frame_id" type="string" value="$(arg frame_id)"/>
     <param name="min_range" type="double" value="$(arg min_range)"/>
     <param name="max_range" type="double" value="$(arg max_range)"/>
+    <param name="batch_deg" type="double" value="$(arg batch_deg)"/>
     <param name="organized" type="bool" value="$(arg organized)"/>
 
     <remap from="~packet" to="$(arg packet)"/>
