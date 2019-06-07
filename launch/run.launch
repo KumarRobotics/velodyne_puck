@@ -12,7 +12,8 @@
   <arg name="frame_id" default="velodyne"/>
   <arg name="organized" default="true"/>
   <arg name="max_range" default="100.0"/>
-  <arg name="batch_deg" default="360.0"/>
+  <arg name="image_width" default="3618"/>
+  <arg name="full_sweep" default="True"/>
 
   <arg name="debug" default="false"/>
   <env if="$(arg debug)" name="ROSCONSOLE_CONFIG_FILE" value="$(find velodyne_puck)/launch/debug.conf"/>
@@ -31,8 +32,9 @@
       <arg name="packet" value="$(arg packet)"/>
 
       <arg name="organized" value="$(arg organized)"/>
-      <arg name="batch_deg" value="$(arg batch_deg)"/>
+      <arg name="full_sweep" value="$(arg full_sweep)"/>
       <arg name="max_range" value="$(arg max_range)"/>
+      <arg name="image_width" value="$(arg image_width)"/>
     </include>
   </group>
 

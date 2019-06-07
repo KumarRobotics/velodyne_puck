@@ -43,14 +43,15 @@ union TwoBytes {
   uint8_t u8[2];
 };
 
-Decoder::Decoder(const ros::NodeHandle& pn) : pnh_(pn), it_(pn) {
-  pnh_.param("min_range", min_range_, 0.5);
-  pnh_.param("max_range", max_range_, 100.0);
-  ROS_ASSERT_MSG(min_range_ <= max_range_, "min_range > max_range");
-  ROS_INFO("min_range: %f, max_range: %f", min_range_, max_range_);
+Decoder::Decoder(const ros::NodeHandle& pnh)
+    : pnh_(pnh), it_(pnh), cfg_server_(pnh) {
+  //  pnh_.param("min_range", min_range_, 0.5);
+  //  pnh_.param("max_range", max_range_, 100.0);
+  //  ROS_ASSERT_MSG(min_range_ <= max_range_, "min_range > max_range");
+  //  ROS_INFO("min_range: %f, max_range: %f", min_range_, max_range_);
 
-  pnh_.param("organized", organized_, true);
-  ROS_INFO("publish organized cloud: %s", organized_ ? "true" : "false");
+  //  pnh_.param("organized", organized_, true);
+  //  ROS_INFO("publish organized cloud: %s", organized_ ? "true" : "false");
 
   pnh_.param<std::string>("frame_id", frame_id_, "velodyne");
   ROS_INFO("Velodyne frame_id: %s", frame_id_.c_str());
@@ -62,6 +63,7 @@ Decoder::Decoder(const ros::NodeHandle& pn) : pnh_(pn), it_(pn) {
   intensity_pub_ = it_.advertise("intensity", 1);
   range_pub_ = it_.advertise("range", 1);
   camera_pub_ = it_.advertiseCamera("image", 5);
+  cfg_server_.setCallback(boost::bind(&Decoder::ConfigCb, this, _1, _2));
 }
 
 Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
@@ -166,22 +168,51 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   // TODO: maybe make this a vector? to handle invalid data block?
   const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toSec());
 
-  // Check for a change of azimuth across 0
-  float prev_azimuth = buffer_.empty() ? -1 : buffer_.back().azimuth;
-
-  for (const auto& tfseq : decoded) {
-    if (tfseq.azimuth < prev_azimuth) {
-      // this indicates we cross the 0 azimuth angle
-      // we are ready to publish what's in the buffer
-      ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
-                rad2deg(prev_azimuth));
-      ROS_DEBUG("buffer size: %zu", buffer_.size());
-      PublishBufferAndClear();
+  if (!config_.full_sweep) {
+    for (const auto& tfseq : decoded) {
+      buffer_.push_back(tfseq);
+      if (buffer_.size() == static_cast<size_t>(config_.image_width)) {
+        ROS_DEBUG("Publish fixed width with buffer size: %zu", buffer_.size());
+        PublishBufferAndClear();
+      }
     }
+  } else {
+    // Full scan mode 0~360
+    // Check for a change of azimuth across 0
+    float prev_azimuth = buffer_.empty() ? -1 : buffer_.back().azimuth;
 
-    buffer_.push_back(tfseq);
-    prev_azimuth = tfseq.azimuth;
+    for (const auto& tfseq : decoded) {
+      if (tfseq.azimuth < prev_azimuth) {
+        // this indicates we cross the 0 azimuth angle
+        // we are ready to publish what's in the buffer
+        ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
+                  rad2deg(prev_azimuth));
+        ROS_DEBUG("Publish full scan with buffer size: %zu", buffer_.size());
+        PublishBufferAndClear();
+      }
+
+      buffer_.push_back(tfseq);
+      prev_azimuth = tfseq.azimuth;
+    }
   }
+}
+
+void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
+  if (config.min_range > config.max_range) {
+    ROS_WARN("min_range: %f > max_range: %f", config.min_range,
+             config.max_range);
+    config.min_range = config.max_range;
+  }
+
+  ROS_INFO(
+      "Reconfigure Request: min_range: %f, max_range: %f, image_width: %d, "
+      "organized: %s, full_sweep: %s",
+      config.min_range, config.max_range, config.image_width,
+      config.organized ? "True" : "False",
+      config.full_sweep ? "True" : "False");
+
+  config_ = config;
+  buffer_.clear();
 }
 
 void Decoder::PublishBufferAndClear() {
@@ -298,8 +329,8 @@ ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
 
 void Decoder::PublishCloud(const ImageConstPtr& image_msg,
                            const CameraInfoConstPtr& cinfo_msg) {
-  const auto cloud =
-      ToCloud(image_msg, cinfo_msg, organized_, min_range_, max_range_);
+  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized,
+                             config_.min_range, config_.max_range);
 
   ROS_DEBUG("number of points in cloud: %zu", cloud->size());
   cloud_pub_.publish(cloud);

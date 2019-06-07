@@ -12,8 +12,11 @@ find_package(catkin REQUIRED
                         cv_bridge
                         image_transport
                         diagnostic_updater
+                        dynamic_reconfigure
                         sensor_msgs
                         velodyne_msgs)
+
+generate_dynamic_reconfigure_options(cfg/VelodynePuck.cfg)
 
 catkin_package(INCLUDE_DIRS src LIBRARIES ${PROJECT_NAME})
 
@@ -26,3 +29,4 @@ add_library(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} src)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
