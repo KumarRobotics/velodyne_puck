@@ -1,6 +1,10 @@
 <launch>
-  <arg name="frame_id" default="velodyne"/>
   <arg name="cloud" default="cloud"/>
+  <arg name="packet" default="packet"/>
+
+  <arg name="frame_id" default="velodyne"/>
+  <arg name="full_sweep" default="True"/>
+  <arg name="image_width" default="3618"/>
   <arg name="organized" default="true"/>
   <arg name="min_range" default="0.5"/>
   <arg name="max_range" default="100.0"/>
@@ -10,9 +14,11 @@
     <param name="frame_id" type="string" value="$(arg frame_id)"/>
     <param name="min_range" type="double" value="$(arg min_range)"/>
     <param name="max_range" type="double" value="$(arg max_range)"/>
+    <param name="image_width" type="int" value="$(arg image_width)"/>
+    <param name="full_sweep" type="bool" value="$(arg full_sweep)"/>
     <param name="organized" type="bool" value="$(arg organized)"/>
 
-    <remap from="~packet" to="packet"/>
+    <remap from="~packet" to="$(arg packet)"/>
 
     <remap from="~range" to="range"/>
     <remap from="~intensity" to="intensity"/>

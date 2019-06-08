@@ -16,18 +16,20 @@
  */
 #pragma once
 
-#include <ros/ros.h>
-
+#include <dynamic_reconfigure/server.h>
 #include <image_transport/camera_publisher.h>
 #include <image_transport/image_transport.h>
 #include <pcl_ros/point_cloud.h>
-#include <velodyne_puck/VelodynePacket.h>
+#include <ros/ros.h>
+#include <velodyne_msgs/VelodynePacket.h>
+#include <velodyne_puck/VelodynePuckConfig.h>
 
 #include "constants.h"
 
 namespace velodyne_puck {
 
 namespace it = image_transport;
+namespace dr = dynamic_reconfigure;
 using PointT = pcl::PointXYZI;
 using CloudT = pcl::PointCloud<PointT>;
 
@@ -46,7 +48,8 @@ class Decoder {
   using Ptr = boost::shared_ptr<Decoder>;
   using ConstPtr = boost::shared_ptr<const Decoder>;
 
-  void PacketCb(const VelodynePacketConstPtr& packet_msg);
+  void PacketCb(const velodyne_msgs::VelodynePacketConstPtr& packet_msg);
+  void ConfigCb(VelodynePuckConfig& config, int level);
 
  private:
   /// ==========================================================================
@@ -92,7 +95,7 @@ class Decoder {
     uint32_t stamp;
     uint8_t factory[2];
   } __attribute__((packed));
-  static_assert(sizeof(Packet) == sizeof(VelodynePacket().data),
+  static_assert(sizeof(Packet) == sizeof(velodyne_msgs::VelodynePacket().data),
                 "sizeof(Packet) != 1206");
 
   /// Decoded result
@@ -119,9 +122,9 @@ class Decoder {
                     const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
   // Configuration parameters
-  double min_range_;
-  double max_range_;
-  bool organized_;
+  //  double min_range_;
+  //  double max_range_;
+  //  bool organized_;
 
   // ROS related parameters
   std::string frame_id_;
@@ -133,7 +136,8 @@ class Decoder {
   it::Publisher intensity_pub_;
   it::Publisher range_pub_;
   it::CameraPublisher camera_pub_;
-
+  dr::Server<VelodynePuckConfig> cfg_server_;
+  VelodynePuckConfig config_;
   std::vector<FiringSequenceStamped> buffer_;  // buffer
 };
 

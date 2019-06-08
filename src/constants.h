@@ -41,6 +41,11 @@ inline int LaserId2Index(int id) {
   return (id % 2 == 0) ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
 }
 
+inline int Index2LaserId(int index) {
+  const auto half = kFiringsPerFiringSequence / 2;
+  return (index < half) ? index * 2 : (index - half) * 2 + 1;
+}
+
 static constexpr uint16_t kMaxRawAzimuth = 35999;
 static constexpr float kAzimuthResolution = 0.01;
 

@@ -11,24 +11,14 @@ find_package(catkin REQUIRED
                         pcl_conversions
                         cv_bridge
                         image_transport
-                        message_generation
                         diagnostic_updater
+                        dynamic_reconfigure
                         sensor_msgs
-                        std_msgs)
+                        velodyne_msgs)
 
-add_message_files(DIRECTORY msg FILES VelodynePacket.msg)
-generate_messages(DEPENDENCIES std_msgs)
+generate_dynamic_reconfigure_options(cfg/VelodynePuck.cfg)
 
-catkin_package(INCLUDE_DIRS
-               src
-               LIBRARIES
-               ${PROJECT_NAME}
-               CATKIN_DEPENDS
-               pcl_ros
-               cv_bridge
-               image_transport
-               sensor_msgs
-               DEPENDS)
+catkin_package(INCLUDE_DIRS src LIBRARIES ${PROJECT_NAME})
 
 # Velodyne Puck Decoder
 add_library(${PROJECT_NAME}
@@ -36,7 +26,7 @@ add_library(${PROJECT_NAME}
             src/driver_nodelet.cpp
             src/decoder.cpp
             src/decoder_nodelet.cpp)
+
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} src)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
