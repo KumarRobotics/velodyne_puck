@@ -31,13 +31,6 @@ namespace velodyne_puck {
 using namespace sensor_msgs;
 using namespace velodyne_msgs;
 
-enum Index {
-  MIN_ELEVATION,
-  MAX_ELEVATION,
-  DISTANCE_RESOLUTION,
-  FIRING_CYCLE_US
-};
-
 union TwoBytes {
   uint16_t u16;
   uint8_t u8[2];
@@ -298,10 +291,10 @@ ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
   cinfo_msg.header = header;
   cinfo_msg.height = image.rows;
   cinfo_msg.width = image.cols;
-  cinfo_msg.K[Index::MIN_ELEVATION] = kMinElevation;
-  cinfo_msg.K[Index::MAX_ELEVATION] = kMaxElevation;
-  cinfo_msg.K[Index::DISTANCE_RESOLUTION] = kDistanceResolution;
-  cinfo_msg.K[Index::FIRING_CYCLE_US] = kFiringCycleUs;
+  cinfo_msg.K[0] = kMinElevation;
+  cinfo_msg.K[1] = kMaxElevation;
+  cinfo_msg.R[0] = kDistanceResolution;
+  cinfo_msg.P[0] = kFiringCycleUs;
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
 
@@ -346,11 +339,11 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
   cloud->header = pcl_conversions::toPCL(image_msg->header);
   cloud->reserve(image.total());
 
-  const float min_elevation = cinfo_msg->K[Index::MIN_ELEVATION];
-  const float max_elevation = cinfo_msg->K[Index::MAX_ELEVATION];
+  const float min_elevation = cinfo_msg->K[0];
+  const float max_elevation = cinfo_msg->K[1];
   const float delta_elevation =
       (max_elevation - min_elevation) / (image.rows - 1);
-  const float distance_resolution = cinfo_msg->K[Index::DISTANCE_RESOLUTION];
+  const float distance_resolution = cinfo_msg->R[0];
 
   // Precompute sin cos
   std::vector<std::pair<float, float>> sin_cos;
