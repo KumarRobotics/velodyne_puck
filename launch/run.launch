@@ -1,4 +1,5 @@
 <launch>
+  <arg name="pkg" value="velodyne_puck"/>
 
   <!-- driver -->
   <arg name="driver" default="true"/>
@@ -18,9 +19,8 @@
   <arg name="debug" default="false"/>
   <env if="$(arg debug)" name="ROSCONSOLE_CONFIG_FILE" value="$(find velodyne_puck)/launch/debug.conf"/>
 
-
   <group ns="$(arg frame_id)">
-    <node pkg="nodelet" type="nodelet" name="velodyne_puck_nodelet_manager" args="manager" output="screen"/>
+    <node pkg="nodelet" type="nodelet" name="$(arg pkg)_nodelet_manager" args="manager" output="screen"/>
 
     <include file="$(find velodyne_puck)/launch/driver_nodelet.launch" if="$(arg driver)">
       <arg name="device_ip" value="$(arg device_ip)"/>
