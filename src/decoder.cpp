@@ -88,18 +88,18 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   // std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
   Decoded decoded;
   // For each data block, 12 total
-  for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
-    const auto& block = packet->blocks[bi];
+  for (int dbi = 0; dbi < kDataBlocksPerPacket; ++dbi) {
+    const auto& block = packet->blocks[dbi];
     const auto raw_azimuth = block.azimuth;
     ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
                          "Invalid raw azimuth: " << raw_azimuth);
-    ROS_WARN_COND(block.flag != UPPER_BANK, "Invalid block %d", bi);
+    ROS_WARN_COND(block.flag != UPPER_BANK, "Invalid block %d", dbi);
 
     // Fill in decoded
     // for each firing sequence in the data block, 2
     for (int fsi = 0; fsi < kFiringSequencesPerDataBlock; ++fsi) {
       // Index into decoded, hardcode 2 for now
-      const auto di = bi * 2 + fsi;
+      const auto di = dbi * 2 + fsi;
       auto& tfseq = decoded[di];
       // Assume all firings within each firing sequence occur at the same time
       tfseq.time = time + di * kFiringCycleUs * 1e-6;
@@ -109,17 +109,17 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   }
 
   // Fix azimuth for odd firing sequences
-  for (int bi = 0; bi < kDataBlocksPerPacket; ++bi) {
+  for (int dbi = 0; dbi < kDataBlocksPerPacket; ++dbi) {
     // 1,3,5,...,23
     // Index into decoded, hardcode 2 for now
-    const auto di = bi * 2 + 1;
+    const auto di = dbi * 2 + 1;
     auto azimuth = decoded[di].azimuth;
 
     auto prev = di - 1;
     auto next = di + 1;
     // Handle last block where there's no next to inerpolate
     // Just use the previous two
-    if (bi == kDataBlocksPerPacket - 1) {
+    if (dbi == kDataBlocksPerPacket - 1) {
       prev -= 2;
       next -= 2;
     }
@@ -291,6 +291,7 @@ ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
   cinfo_msg.K[1] = kMaxElevation;
   cinfo_msg.R[0] = kDistanceResolution;
   cinfo_msg.P[0] = kFiringCycleUs;
+  cinfo_msg.P[1] = kSingleFiringUs;
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
 
