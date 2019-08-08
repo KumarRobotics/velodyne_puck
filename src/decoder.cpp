@@ -103,7 +103,7 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
       auto& tfseq = decoded[di];
       // Assume all firings within each firing sequence occur at the same time
       tfseq.time = time + di * kFiringCycleUs * 1e-6;
-      tfseq.azimuth = Azimuth(block.azimuth);  // need to fix half later
+      tfseq.azimuth = Raw2Azimuth(block.azimuth);  // need to fix half later
       tfseq.sequence = block.sequences[fsi];
     }
   }
@@ -138,10 +138,6 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
                   azimuth_next);
 
     const auto azimuth_diff = (azimuth_next - azimuth_prev) / 2.0;
-    const auto azimuth_diff_deg = rad2deg(azimuth_diff);
-
-    ROS_WARN_COND(std::abs(azimuth_diff_deg - 0.1) > 1e-1,
-                  "azimuth_diff too big: %f deg", azimuth_diff_deg);
 
     azimuth += azimuth_diff;
     if (azimuth > kTau) {
@@ -164,7 +160,7 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   if (!config_.full_sweep) {
     for (const auto& tfseq : decoded) {
       buffer_.push_back(tfseq);
-      if (buffer_.size() == static_cast<size_t>(config_.image_width)) {
+      if (buffer_.size() >= static_cast<size_t>(config_.image_width)) {
         ROS_DEBUG("Publish fixed width with buffer size: %zu", buffer_.size());
         PublishBufferAndClear();
       }
@@ -311,9 +307,13 @@ ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
       // min elevation (lowest) hence we flip row number
       // also data points are stored in laser ids which are interleaved, so we
       // need to convert to index first. See p54 table
-      const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
-      image.at<cv::Vec3b>(rr, c) =
-          *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[r])));
+      //      const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
+      //      image.at<cv::Vec3b>(rr, c) =
+      //          *(reinterpret_cast<const
+      //          cv::Vec3b*>(&(tfseq.sequence.points[r])));
+      const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
+      image.at<cv::Vec3b>(r, c) =
+          *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[rr])));
     }
   }
 
@@ -367,7 +367,7 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
       TwoBytes b2;
       b2.u8[0] = data[0];
       b2.u8[1] = data[1];
-      const float d = b2.u16 * distance_resolution;
+      const float d = static_cast<float>(b2.u16) * distance_resolution;
 
       PointT p;
       if (d < min_range || d > max_range) {
@@ -377,8 +377,8 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
         }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
-        //        const auto x = d * cos_omega * std::sin(alpha);
-        //        const auto y = d * cos_omega * std::cos(alpha);
+        // const auto x = d * cos_omega * std::sin(alpha);
+        // const auto y = d * cos_omega * std::cos(alpha);
         const auto x = d * cos_omega * sin_cos[c].first;
         const auto y = d * cos_omega * sin_cos[c].second;
         const auto z = d * sin_omega;

@@ -47,20 +47,20 @@ inline int Index2LaserId(int index) {
 }
 
 static constexpr uint16_t kMaxRawAzimuth = 35999;
-static constexpr float kAzimuthResolution = 0.01;
+static constexpr float kAzimuthResolution = 0.01f;
 
-static constexpr float kMinElevation = deg2rad(-15.0);
-static constexpr float kMaxElevation = deg2rad(15.0);
+static constexpr float kMinElevation = deg2rad(-15.0f);
+static constexpr float kMaxElevation = deg2rad(15.0f);
 static constexpr float kDeltaElevation =
     (kMaxElevation - kMinElevation) / (kFiringsPerFiringSequence - 1);
 
-inline constexpr float Azimuth(uint16_t raw) {
+inline constexpr float Raw2Azimuth(uint16_t raw) {
   // According to the user manual,
   return deg2rad(static_cast<float>(raw) * kAzimuthResolution);
 }
 
 /// p55 9.3.1.2
-inline constexpr float Distance(uint16_t raw) {
+inline constexpr float Raw2Distance(uint16_t raw) {
   return static_cast<float>(raw) * kDistanceResolution;
 }
 

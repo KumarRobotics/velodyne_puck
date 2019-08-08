@@ -30,6 +30,7 @@ namespace velodyne_puck {
 
 namespace it = image_transport;
 namespace dr = dynamic_reconfigure;
+
 using PointT = pcl::PointXYZI;
 using CloudT = pcl::PointCloud<PointT>;
 
