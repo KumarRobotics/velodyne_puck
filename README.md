@@ -31,6 +31,7 @@ By default, the IP address of the device is 192.168.1.201.
 `packet` (`velodyne_puck/VelodynePacket`)
 
 Each message corresponds to a velodyne packet sent by the device through the Ethernet. For more details on the definition of the packet, please refer to the [user manual](http://velodynelidar.com/docs/manuals/63-9243%20Rev%20B%20User%20Manual%20and%20Programming%20Guide,VLP-16.pdf).
+This is the topic to save, don't save point cloud or range image!!!
 
 ### velodyne_puck_decoder
 
@@ -40,11 +41,20 @@ Each message corresponds to a velodyne packet sent by the device through the Eth
 
 `max_range` (`double`, `100.0`)
 
-Points outside this range will be removed only in published point cloud.
+Points outside this range will be NaN in published point cloud if `organized=True`.
+Otherwise, they will be removed.
+
+`image_width` (`int`, `1024`)
+
+Width of the published image.
+
+`full_sweep` (`bool`, `true`)
+
+Whether to publish a full sweep or not.
 
 `organized` (`bool`, `true`)
 
-Whether to publish an organized cloud or not. Does not affect the range image.
+Whether to publish an organized cloud or not. 
 
 `frame_id` (`string`, `velodyne`)
 
@@ -54,7 +64,7 @@ Will be used as namespace for all nodes and messages.
 
 `image` (`sensor_msgs/Image`)
 
-The range image is encoded as a BGR8 image, since the data point from the device contains 3 bytes, 2 for distance and 1 for intensity.
+The range image is encoded as a CV_16UC2 image, the first channel encodes range measurement (divide by `distance_resolution` to get distance in meters), the second channel encodes reflectivity(intensity).
 
 row 0 ~ 15 in the image correspond to lasers from top to bottom, as opposed to bottom to top for visualization purposes.
 
@@ -64,10 +74,6 @@ pixels in each row just contain those 3 bytes.
 
 Stores relevant information to restore points from range image.
 
-`range` (`sensor_msgs/Image`)
-
-For visualizing range image only. 
-
 `intensity` (`sensor_msgs/Image`)
 
 For visualizing intensity image only.
@@ -76,8 +82,9 @@ For visualizing intensity image only.
 ```
 K[0] = MinElevation; // -15 deg
 K[1] = MaxElevation; // 15 deg
-K[2] = DistanceResolution; // 0.002
-k[3] = FiringCycleUs; // 55.296 us
+R[0] = DistanceResolution; // 0.002
+P[0] = FiringCycleUs; // 55.296 us
+P[0] = SingleFiringUS; // 2.304 us
 D = vector<azimuth> // D.size() == image.cols
 ```
 
@@ -87,6 +94,12 @@ A point cloud, where invalid points are filled with NaNs if organized and remove
 
 **Node**
 
+Run full driver
 ```
 roslaunch velodyne_puck run.launch driver:=true device_ip:=192.168.1.201
+```
+
+Run decoder only
+```
+roslaunch velodyne_puck run.launch driver:=false
 ```

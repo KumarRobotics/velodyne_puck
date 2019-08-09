@@ -28,15 +28,8 @@
 
 namespace velodyne_puck {
 
-namespace it = image_transport;
-namespace dr = dynamic_reconfigure;
 using PointT = pcl::PointXYZI;
 using CloudT = pcl::PointCloud<PointT>;
-
-/// Convert image and camera_info to point cloud
-CloudT::Ptr ToCloud(const sensor_msgs::ImageConstPtr& image_msg,
-                    const sensor_msgs::CameraInfoConstPtr& cinfo_msg,
-                    bool organized, float min_range, float max_range);
 
 class Decoder {
  public:
@@ -69,8 +62,7 @@ class Decoder {
   struct FiringSequence {
     DataPoint points[kFiringsPerFiringSequence];  // 16
   } __attribute__((packed));
-  static_assert(sizeof(FiringSequence) == 3 * 16,
-                "sizeof(FiringSequence) != 48");
+  static_assert(sizeof(FiringSequence) == 48, "sizeof(FiringSequence) != 48");
 
   /// 9.3.1.4 Azimuth
   /// A two-byte azimuth value (alpha) appears after the flag bytes at the
@@ -110,33 +102,25 @@ class Decoder {
   Decoded DecodePacket(const Packet* packet, double time) const;
 
   /// Convert firing sequences to image data
-  sensor_msgs::ImagePtr ToImageData(
+  sensor_msgs::ImagePtr ToImage(
       const std::vector<FiringSequenceStamped>& tfseqs,
       sensor_msgs::CameraInfo& cinfo) const;
 
   /// Publish
   void PublishBufferAndClear();
-  void PublishRange(const sensor_msgs::ImageConstPtr& image_msg);
   void PublishIntensity(const sensor_msgs::ImageConstPtr& image_msg);
   void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
                     const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
-  // Configuration parameters
-  //  double min_range_;
-  //  double max_range_;
-  //  bool organized_;
-
   // ROS related parameters
   std::string frame_id_;
   ros::NodeHandle pnh_;
-  it::ImageTransport it_;
+  image_transport::ImageTransport it_;
   ros::Subscriber packet_sub_;
-
   ros::Publisher cloud_pub_;
-  it::Publisher intensity_pub_;
-  it::Publisher range_pub_;
-  it::CameraPublisher camera_pub_;
-  dr::Server<VelodynePuckConfig> cfg_server_;
+  image_transport::Publisher intensity_pub_;
+  image_transport::CameraPublisher camera_pub_;
+  dynamic_reconfigure::Server<VelodynePuckConfig> cfg_server_;
   VelodynePuckConfig config_;
   std::vector<FiringSequenceStamped> buffer_;  // buffer
 };
