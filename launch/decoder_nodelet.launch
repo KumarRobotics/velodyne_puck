@@ -6,7 +6,7 @@
 
   <arg name="frame_id" default="velodyne"/>
   <arg name="full_sweep" default="True"/>
-  <arg name="image_width" default="3636"/>
+  <arg name="image_width" default="1024"/>
   <arg name="organized" default="true"/>
   <arg name="min_range" default="1.0"/>
   <arg name="max_range" default="100.0"/>
@@ -24,10 +24,7 @@
     <param name="precise" type="bool" value="$(arg precise)"/>
 
     <remap from="~packet" to="$(arg packet)"/>
-
-    <remap from="~range" to="range"/>
     <remap from="~intensity" to="intensity"/>
-
     <remap from="~cloud" to="$(arg cloud)"/>
     <remap from="~image" to="image"/>
     <remap from="~camera_info" to="camera_info"/>

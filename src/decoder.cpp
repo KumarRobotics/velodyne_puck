@@ -21,6 +21,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <opencv2/core.hpp>
 
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
@@ -31,21 +32,13 @@ namespace velodyne_puck {
 using namespace sensor_msgs;
 using namespace velodyne_msgs;
 
-union TwoBytes {
-  uint16_t u16;
-  uint8_t u8[2];
-};
+/// Convert image and camera_info to point cloud
+CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
+                    const CameraInfoConstPtr& cinfo_msg, bool organized,
+                    float min_range, float max_range);
 
 Decoder::Decoder(const ros::NodeHandle& pnh)
     : pnh_(pnh), it_(pnh), cfg_server_(pnh) {
-  //  pnh_.param("min_range", min_range_, 0.5);
-  //  pnh_.param("max_range", max_range_, 100.0);
-  //  ROS_ASSERT_MSG(min_range_ <= max_range_, "min_range > max_range");
-  //  ROS_INFO("min_range: %f, max_range: %f", min_range_, max_range_);
-
-  //  pnh_.param("organized", organized_, true);
-  //  ROS_INFO("publish organized cloud: %s", organized_ ? "true" : "false");
-
   pnh_.param<std::string>("frame_id", frame_id_, "velodyne");
   ROS_INFO("Velodyne frame_id: %s", frame_id_.c_str());
 
@@ -54,7 +47,6 @@ Decoder::Decoder(const ros::NodeHandle& pnh)
   cloud_pub_ = pnh_.advertise<PointCloud2>("cloud", 10);
 
   intensity_pub_ = it_.advertise("intensity", 1);
-  range_pub_ = it_.advertise("range", 1);
   camera_pub_ = it_.advertiseCamera("image", 5);
   cfg_server_.setCallback(boost::bind(&Decoder::ConfigCb, this, _1, _2));
 }
@@ -100,7 +92,7 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
     for (int fsi = 0; fsi < kFiringSequencesPerDataBlock; ++fsi) {
       // Index into decoded, hardcode 2 for now
       const auto di = dbi * 2 + fsi;
-      auto& tfseq = decoded[di];
+      FiringSequenceStamped& tfseq = decoded[di];
       // Assume all firings within each firing sequence occur at the same time
       tfseq.time = time + di * kFiringCycleUs * 1e-6;
       tfseq.azimuth = Raw2Azimuth(block.azimuth);  // need to fix half later
@@ -210,14 +202,10 @@ void Decoder::PublishBufferAndClear() {
   const auto t1 = ros::Time::now();
   // Always convert to image data
   const CameraInfoPtr cinfo_msg(new CameraInfo);
-  const auto image_msg = ToImageData(buffer_, *cinfo_msg);
+  const auto image_msg = ToImage(buffer_, *cinfo_msg);
 
   if (camera_pub_.getNumSubscribers()) {
     camera_pub_.publish(image_msg, cinfo_msg);
-  }
-
-  if (range_pub_.getNumSubscribers()) {
-    PublishRange(image_msg);
   }
 
   if (intensity_pub_.getNumSubscribers()) {
@@ -234,56 +222,34 @@ void Decoder::PublishBufferAndClear() {
   ROS_DEBUG("Total time for publish: %f", time);
 }
 
-void Decoder::PublishRange(const ImageConstPtr& image_msg) {
-  const auto image = cv_bridge::toCvShare(image_msg)->image;
-  cv::Mat range = cv::Mat::zeros(image.rows, image.cols, CV_16UC1);
-
-  for (int r = 0; r < image.rows; ++r) {
-    const auto* const row_ptr_image = image.ptr<cv::Vec3b>(r);
-    auto* const row_ptr_range = range.ptr<uint16_t>(r);
-
-    for (int c = 0; c < image.cols; ++c) {
-      TwoBytes b2;
-      b2.u8[0] = row_ptr_image[c][0];
-      b2.u8[1] = row_ptr_image[c][1];
-      row_ptr_range[c] = b2.u16;
-    }
-  }
-
-  range_pub_.publish(
-      cv_bridge::CvImage(image_msg->header, image_encodings::MONO16, range)
-          .toImageMsg());
-}
-
 void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
   const auto image = cv_bridge::toCvShare(image_msg)->image;
-  cv::Mat intensity = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
-
-  for (int r = 0; r < image.rows; ++r) {
-    const auto* const row_ptr_image = image.ptr<cv::Vec3b>(r);
-    auto* const row_ptr_intensity = intensity.ptr<uint8_t>(r);
-
-    for (int c = 0; c < image.cols; ++c) {
-      row_ptr_intensity[c] = row_ptr_image[c][2];
-    }
-  }
-
+  cv::Mat intensity;
+  cv::extractChannel(image, intensity, 1);
+  intensity.convertTo(intensity, CV_8UC1);
   intensity_pub_.publish(
-      cv_bridge::CvImage(image_msg->header, image_encodings::MONO8, intensity)
-          .toImageMsg());
+      cv_bridge::CvImage(image_msg->header, "mono8", intensity).toImageMsg());
 }
 
-ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
-                              CameraInfo& cinfo_msg) const {
+void Decoder::PublishCloud(const ImageConstPtr& image_msg,
+                           const CameraInfoConstPtr& cinfo_msg) {
+  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized,
+                             config_.min_range, config_.max_range);
+
+  ROS_DEBUG("number of points in cloud: %zu", cloud->size());
+  cloud_pub_.publish(cloud);
+}
+
+ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
+                          CameraInfo& cinfo_msg) const {
   std_msgs::Header header;
   header.stamp = ros::Time(fseqs[0].time);
   header.frame_id = frame_id_;
 
   cv::Mat image =
-      cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(), CV_8UC3);
+      cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(), CV_16UC2);
   ROS_DEBUG("image size: %d x %d", image.rows, image.cols);
 
-  //  sensor_msgs::CameraInfoPtr cinfo_msg(new sensor_msgs::CameraInfo);
   cinfo_msg.header = header;
   cinfo_msg.height = image.rows;
   cinfo_msg.width = image.cols;
@@ -312,22 +278,20 @@ ImagePtr Decoder::ToImageData(const std::vector<FiringSequenceStamped>& fseqs,
       //      image.at<cv::Vec3b>(rr, c) =
       //          *(reinterpret_cast<const
       //          cv::Vec3b*>(&(tfseq.sequence.points[r])));
+      //      const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
+      //      image.at<cv::Vec3b>(r, c) =
+      //          *(reinterpret_cast<const
+      //          cv::Vec3b*>(&(tfseq.sequence.points[rr])));
+
       const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
-      image.at<cv::Vec3b>(r, c) =
-          *(reinterpret_cast<const cv::Vec3b*>(&(tfseq.sequence.points[rr])));
+      image.at<cv::Vec2w>(r, c) =
+          cv::Vec2w(tfseq.sequence.points[rr].distance,
+                    tfseq.sequence.points[rr].reflectivity);
     }
   }
 
-  return cv_bridge::CvImage(header, image_encodings::BGR8, image).toImageMsg();
-}
-
-void Decoder::PublishCloud(const ImageConstPtr& image_msg,
-                           const CameraInfoConstPtr& cinfo_msg) {
-  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized,
-                             config_.min_range, config_.max_range);
-
-  ROS_DEBUG("number of points in cloud: %zu", cloud->size());
-  cloud_pub_.publish(cloud);
+  return cv_bridge::CvImage(header, image_encodings::TYPE_16UC2, image)
+      .toImageMsg();
 }
 
 CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
@@ -355,20 +319,15 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
   }
 
   for (int r = 0; r < image.rows; ++r) {
-    const auto* const row_ptr = image.ptr<cv::Vec3b>(r);
+    const auto* const row_ptr = image.ptr<cv::Vec2w>(r);
     // Because image row 0 is the highest laser point
     const float omega = max_elevation - r * delta_elevation;
     const auto cos_omega = std::cos(omega);
     const auto sin_omega = std::sin(omega);
 
     for (int c = 0; c < image.cols; ++c) {
-      const cv::Vec3b& data = row_ptr[c];
-      // const auto alpha = azimuths[c];
-
-      TwoBytes b2;
-      b2.u8[0] = data[0];
-      b2.u8[1] = data[1];
-      const float d = static_cast<float>(b2.u16) * distance_resolution;
+      const cv::Vec2w& data = row_ptr[c];
+      const float d = data[0] * distance_resolution;
 
       PointT p;
       if (d < min_range || d > max_range) {
@@ -390,7 +349,7 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
         p.x = y;
         p.y = -x;
         p.z = z;
-        p.intensity = data[2];
+        p.intensity = static_cast<float>(data[1]);
 
         cloud->points.push_back(p);
       }
