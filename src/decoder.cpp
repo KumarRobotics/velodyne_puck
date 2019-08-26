@@ -17,8 +17,6 @@
 
 #include "decoder.h"
 
-#include <math.h>
-
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <opencv2/core.hpp>
@@ -34,8 +32,7 @@ using namespace velodyne_msgs;
 
 /// Convert image and camera_info to point cloud
 CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
-                    const CameraInfoConstPtr& cinfo_msg, bool organized,
-                    float min_range, float max_range);
+                    const CameraInfoConstPtr& cinfo_msg, bool organized);
 
 Decoder::Decoder(const ros::NodeHandle& pnh)
     : pnh_(pnh), it_(pnh), cfg_server_(pnh) {
@@ -233,9 +230,7 @@ void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
 
 void Decoder::PublishCloud(const ImageConstPtr& image_msg,
                            const CameraInfoConstPtr& cinfo_msg) {
-  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized,
-                             config_.min_range, config_.max_range);
-
+  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized);
   ROS_DEBUG("number of points in cloud: %zu", cloud->size());
   cloud_pub_.publish(cloud);
 }
@@ -261,6 +256,9 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
 
+  const uint16_t min_range = config_.min_range / kDistanceResolution;
+  const uint16_t max_range = config_.max_range / kDistanceResolution;
+
   // Unfortunately the buffer element is organized in columns, probably not very
   // cache-friendly
   for (int c = 0; c < image.cols; ++c) {
@@ -270,10 +268,6 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
 
     // Fill in image
     for (int r = 0; r < image.rows; ++r) {
-      // row 0 corresponds to max elevation (highest), row 15 corresponds to
-      // min elevation (lowest) hence we flip row number
-      // also data points are stored in laser ids which are interleaved, so we
-      // need to convert to index first. See p54 table
       //      const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
       //      image.at<cv::Vec3b>(rr, c) =
       //          *(reinterpret_cast<const
@@ -283,10 +277,20 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
       //          *(reinterpret_cast<const
       //          cv::Vec3b*>(&(tfseq.sequence.points[rr])));
 
+      // row 0 corresponds to max elevation (highest), row 15 corresponds to
+      // min elevation (lowest) hence we flip row number
+      // also data points are stored in laser ids which are interleaved, so we
+      // need to convert to index first. See p54 table
       const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
+
+      // We clip range in image instead of in cloud
+      auto range = tfseq.sequence.points[rr].distance;
+      if (range < min_range || range > max_range) {
+        range = 0;
+      }
+
       image.at<cv::Vec2w>(r, c) =
-          cv::Vec2w(tfseq.sequence.points[rr].distance,
-                    tfseq.sequence.points[rr].reflectivity);
+          cv::Vec2w(range, tfseq.sequence.points[rr].reflectivity);
     }
   }
 
@@ -295,8 +299,7 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
 }
 
 CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
-                    const CameraInfoConstPtr& cinfo_msg, bool organized,
-                    float min_range, float max_range) {
+                    const CameraInfoConstPtr& cinfo_msg, bool organized) {
   CloudT::Ptr cloud(new CloudT);
   const auto image = cv_bridge::toCvShare(image_msg)->image;
   const auto& azimuths = cinfo_msg->D;
@@ -327,21 +330,22 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
 
     for (int c = 0; c < image.cols; ++c) {
       const cv::Vec2w& data = row_ptr[c];
-      const float d = data[0] * distance_resolution;
 
       PointT p;
-      if (d < min_range || d > max_range) {
+      if (data[0] == 0) {
         if (organized) {
           p.x = p.y = p.z = kPclNaN;
           cloud->points.push_back(p);
         }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
-        // const auto x = d * cos_omega * std::sin(alpha);
-        // const auto y = d * cos_omega * std::cos(alpha);
-        const auto x = d * cos_omega * sin_cos[c].first;
-        const auto y = d * cos_omega * sin_cos[c].second;
-        const auto z = d * sin_omega;
+        // x = d * cos(w) * sin(a);
+        // y = d * cos(w) * cos(a);
+        // z = d * sin(w)
+        const float R = data[0] * distance_resolution;
+        const auto x = R * cos_omega * sin_cos[c].first;
+        const auto y = R * cos_omega * sin_cos[c].second;
+        const auto z = R * sin_omega;
 
         // original velodyne frame is x right y forward
         // we make x forward and y left, thus 0 azimuth is at x = 0 and
