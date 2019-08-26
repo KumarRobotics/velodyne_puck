@@ -83,7 +83,8 @@ class Decoder {
     DataBlock blocks[kDataBlocksPerPacket];  // 12
     /// The four-byte time stamp is a 32-bit unsigned integer marking the moment
     /// of the first data point in the first firing sequcne of the first data
-    /// block
+    /// block. The time stamp’s value is the number of microseconds elapsed
+    /// since the top of the hour.
     uint32_t stamp;
     uint8_t factory[2];
   } __attribute__((packed));

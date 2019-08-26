@@ -26,16 +26,12 @@
 
 namespace velodyne_puck {
 
-/**
- * @brief The VelodynePuckDriver class
- */
 class Driver {
  public:
-  explicit Driver(const ros::NodeHandle& pn);
+  explicit Driver(const ros::NodeHandle& pnh);
   ~Driver();
 
   using Ptr = boost::shared_ptr<Driver>;
-  using ConstPtr = boost::shared_ptr<const Driver>;
 
   bool Poll();
 
@@ -44,21 +40,18 @@ class Driver {
   int ReadPacket(velodyne_msgs::VelodynePacket& packet) const;
 
   // Ethernet relate variables
-  std::string device_ip_str;
-  in_addr device_ip;
-  int socket_id{-1};
+  std::string device_ip_str_;
+  in_addr device_ip_;
+  int socket_id_{-1};
 
   // ROS related variables
-  ros::NodeHandle nh;
-  ros::NodeHandle pnh;
-
-  ros::Publisher packet_pub;
+  ros::NodeHandle pnh_;
+  ros::Publisher packet_pub_;
 
   // Diagnostics updater
-  diagnostic_updater::Updater diagnostics;
-  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> diag_topic;
-  double diag_min_freq;
-  double diag_max_freq;
+  diagnostic_updater::Updater updater_;
+  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> topic_diag_;
+  double freq_;
 };
 
 }  // namespace velodyne_puck

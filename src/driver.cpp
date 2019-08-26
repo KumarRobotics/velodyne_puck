@@ -30,6 +30,7 @@
 namespace velodyne_puck {
 
 using namespace velodyne_msgs;
+using namespace diagnostic_updater;
 
 /// Constants
 static constexpr uint16_t kUdpPort = 2368;
@@ -41,20 +42,19 @@ static constexpr double kDelayPerPacketUs =
     kFiringSequencesPerPacket * kFiringCycleUs;
 static constexpr double kPacketsPerSecond = 1e6 / kDelayPerPacketUs;
 
-/// VelodynePuckDriver
-Driver::Driver(const ros::NodeHandle &pn) : pnh(pn) {
+Driver::Driver(const ros::NodeHandle &pnh) : pnh_(pnh) {
   ROS_INFO("packet size: %zu", kPacketSize);
-  pnh.param("device_ip", device_ip_str, std::string("192.168.1.201"));
-  ROS_INFO("device_ip: %s", device_ip_str.c_str());
+  pnh_.param("device_ip", device_ip_str_, std::string("192.168.1.201"));
+  ROS_INFO("device_ip: %s", device_ip_str_.c_str());
 
-  if (inet_aton(device_ip_str.c_str(), &device_ip) == 0) {
+  if (inet_aton(device_ip_str_.c_str(), &device_ip_) == 0) {
     // inet_aton() returns nonzero if the address is valid, zero if not.
-    ROS_FATAL("Invalid device ip: %s", device_ip_str.c_str());
+    ROS_FATAL("Invalid device ip: %s", device_ip_str_.c_str());
     ros::shutdown();
   }
 
   // ROS diagnostics
-  diagnostics.setHardwareID("VLP16");
+  updater_.setHardwareID("VLP16");
   // VLP16 publishs 0.3 million points per second.
   // Each packet contains 12 blocks. And each block
   // contains 32 points. Together provides the
@@ -65,38 +65,35 @@ Driver::Driver(const ros::NodeHandle &pn) : pnh(pn) {
   // There are 24 firing cycles in a data packet.
   // 24 x 55.296 μs = 1.327 ms is the accumulation delay per packet.
   // 1 packet/1.327 ms = 753.5 packets/second
-  const double diag_freq = kPacketsPerSecond;
-  diag_max_freq = diag_min_freq = diag_freq;
-  ROS_INFO("expected frequency: %.3f (Hz)", diag_freq);
+  freq_ = kPacketsPerSecond;
+  ROS_INFO("expected frequency: %.3f (Hz)", freq_);
 
-  using namespace diagnostic_updater;
-  diag_topic.reset(new TopicDiagnostic(
-      "packet", diagnostics,
-      FrequencyStatusParam(&diag_min_freq, &diag_max_freq, 0.1, 10),
-      TimeStampStatusParam()));
+  topic_diag_.reset(new TopicDiagnostic(
+      "packet", updater_, FrequencyStatusParam(&freq_, &freq_, 0.1, 100),
+      TimeStampStatusParam(-0.1, 0.1)));
 
   // Output
-  packet_pub = pnh.advertise<VelodynePacket>("packet", 10);
+  packet_pub_ = pnh_.advertise<VelodynePacket>("packet", 10);
 
   if (!OpenUdpPort()) {
     ROS_ERROR("Failed to open UDP Port");
   }
 
-  ROS_INFO("Successfully opened UDP Port at %s", device_ip_str.c_str());
+  ROS_INFO("Successfully opened UDP Port at %s", device_ip_str_.c_str());
 }
 
 Driver::~Driver() {
-  if (close(socket_id)) {
-    ROS_INFO("Close socket %d at %s", socket_id, device_ip_str.c_str());
+  if (close(socket_id_)) {
+    ROS_INFO("Close socket %d at %s", socket_id_, device_ip_str_.c_str());
   } else {
-    ROS_ERROR("Failed to close socket %d at %s", socket_id,
-              device_ip_str.c_str());
+    ROS_ERROR("Failed to close socket %d at %s", socket_id_,
+              device_ip_str_.c_str());
   }
 }
 
 bool Driver::OpenUdpPort() {
-  socket_id = socket(PF_INET, SOCK_DGRAM, 0);
-  if (socket_id == -1) {
+  socket_id_ = socket(PF_INET, SOCK_DGRAM, 0);
+  if (socket_id_ == -1) {
     perror("socket");
     ROS_ERROR("Failed to create socket");
     return false;
@@ -108,13 +105,13 @@ bool Driver::OpenUdpPort() {
   my_addr.sin_port = htons(kUdpPort);    // short, in network byte order
   my_addr.sin_addr.s_addr = INADDR_ANY;  // automatically fill in my IP
 
-  if (bind(socket_id, (sockaddr *)&my_addr, sizeof(sockaddr)) == -1) {
+  if (bind(socket_id_, (sockaddr *)&my_addr, sizeof(sockaddr)) == -1) {
     perror("bind");  // TODO: ROS_ERROR errno
-    ROS_ERROR("Failed to bind to socket %d", socket_id);
+    ROS_ERROR("Failed to bind to socket %d", socket_id_);
     return false;
   }
 
-  if (fcntl(socket_id, F_SETFL, O_NONBLOCK | FASYNC) < 0) {
+  if (fcntl(socket_id_, F_SETFL, O_NONBLOCK | FASYNC) < 0) {
     perror("non-block");
     ROS_ERROR("Failed to set socket to non-blocking");
     return false;
@@ -127,7 +124,7 @@ int Driver::ReadPacket(VelodynePacket &packet) const {
   const auto time_before = ros::Time::now();
 
   struct pollfd fds[1];
-  fds[0].fd = socket_id;
+  fds[0].fd = socket_id_;
   fds[0].events = POLLIN;
   const int timeout_ms = 1000;  // one second (in msec)
 
@@ -177,7 +174,7 @@ int Driver::ReadPacket(VelodynePacket &packet) const {
     // Receive packets that should now be available from the
     // socket using a blocking read.
     const ssize_t nbytes =
-        recvfrom(socket_id, &packet.data[0], kPacketSize, 0,
+        recvfrom(socket_id_, &packet.data[0], kPacketSize, 0,
                  (sockaddr *)&sender_address, &sender_address_len);
 
     if (nbytes < 0) {
@@ -190,8 +187,8 @@ int Driver::ReadPacket(VelodynePacket &packet) const {
       // read successful,
       // if packet is not from the lidar scanner we selected by IP,
       // continue otherwise we are done
-      if (device_ip_str != "" &&
-          sender_address.sin_addr.s_addr != device_ip.s_addr)
+      if (device_ip_str_ != "" &&
+          sender_address.sin_addr.s_addr != device_ip_.s_addr)
         continue;
       else
         break;  // done
@@ -202,7 +199,7 @@ int Driver::ReadPacket(VelodynePacket &packet) const {
 
   // Average the times at which we begin and end reading.  Use that to
   // estimate when the scan occurred.
-  const auto time_after = ros::Time::now();
+  //  const auto time_after = ros::Time::now();
   // Usually take around 0.0012s on my pc
   //  ROS_INFO("time: %f", time_after - time_before);
   //  packet.stamp = ros::Time((time_after + time_before) / 2.0);
@@ -225,12 +222,12 @@ bool Driver::Poll() {
   }
 
   // publish message using time of last packet read
-  packet_pub.publish(packet);
+  packet_pub_.publish(packet);
 
   // notify diagnostics that a message has been published, updating
   // its status
-  diag_topic->tick(packet->stamp);
-  diagnostics.update();
+  topic_diag_->tick(packet->stamp);
+  updater_.update();
 
   return true;
 }
