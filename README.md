@@ -83,8 +83,8 @@ For visualizing intensity image only.
 K[0] = MinElevation; // -15 deg
 K[1] = MaxElevation; // 15 deg
 R[0] = DistanceResolution; // 0.002
-P[0] = FiringCycleUs; // 55.296 us
-P[0] = SingleFiringUS; // 2.304 us
+P[0] = FiringCycleNs; // 55296 ns
+P[0] = SingleFiringNS; // 2304 ns
 D = vector<azimuth> // D.size() == image.cols
 ```
 
