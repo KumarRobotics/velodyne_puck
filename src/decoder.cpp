@@ -144,7 +144,7 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
       reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
 
   // TODO: maybe make this a vector? to handle invalid data block?
-  const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toSec());
+  const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toNSec());
 
   if (!config_.full_sweep) {
     for (const auto& tfseq : decoded) {
