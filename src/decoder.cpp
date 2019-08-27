@@ -49,7 +49,7 @@ Decoder::Decoder(const ros::NodeHandle& pnh)
 }
 
 Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
-                                       double time) const {
+                                       int64_t time) const {
   // Azimuth is clockwise, which is absurd
   // ^ y
   // | a /
@@ -91,7 +91,7 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
       const auto di = dbi * 2 + fsi;
       FiringSequenceStamped& tfseq = decoded[di];
       // Assume all firings within each firing sequence occur at the same time
-      tfseq.time = time + di * kFiringCycleUs * 1e-6;
+      tfseq.time = time + di * kFiringCycleNs;
       tfseq.azimuth = Raw2Azimuth(block.azimuth);  // need to fix half later
       tfseq.sequence = block.sequences[fsi];
     }
@@ -196,7 +196,7 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
 void Decoder::PublishBufferAndClear() {
   if (buffer_.empty()) return;
 
-  const auto t1 = ros::Time::now();
+  const auto start = ros::Time::now();
   // Always convert to image data
   const CameraInfoPtr cinfo_msg(new CameraInfo);
   const auto image_msg = ToImage(buffer_, *cinfo_msg);
@@ -215,7 +215,7 @@ void Decoder::PublishBufferAndClear() {
 
   buffer_.clear();
 
-  const auto time = (ros::Time::now() - t1).toSec();
+  const auto time = (ros::Time::now() - start).toSec();
   ROS_DEBUG("Total time for publish: %f", time);
 }
 
@@ -238,7 +238,7 @@ void Decoder::PublishCloud(const ImageConstPtr& image_msg,
 ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
                           CameraInfo& cinfo_msg) const {
   std_msgs::Header header;
-  header.stamp = ros::Time(fseqs[0].time);
+  header.stamp.fromNSec(fseqs[0].time);
   header.frame_id = frame_id_;
 
   cv::Mat image =
@@ -251,8 +251,8 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
   cinfo_msg.K[0] = kMinElevation;
   cinfo_msg.K[1] = kMaxElevation;
   cinfo_msg.R[0] = kDistanceResolution;
-  cinfo_msg.P[0] = kFiringCycleUs;
-  cinfo_msg.P[1] = kSingleFiringUs;
+  cinfo_msg.P[0] = kFiringCycleNs;   // ns
+  cinfo_msg.P[1] = kSingleFiringNs;  // ns
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
 

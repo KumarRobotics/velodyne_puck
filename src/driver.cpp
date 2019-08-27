@@ -38,9 +38,9 @@ static constexpr size_t kPacketSize = sizeof(VelodynePacket().data);
 static constexpr int kError = -1;
 
 // p49 8.2.1
-static constexpr double kDelayPerPacketUs =
-    kFiringSequencesPerPacket * kFiringCycleUs;
-static constexpr double kPacketsPerSecond = 1e6 / kDelayPerPacketUs;
+static constexpr double kDelayPerPacketNs =
+    kFiringSequencesPerPacket * kFiringCycleNs;
+static constexpr double kPacketsPerSecond = 1e9 / kDelayPerPacketNs;
 
 Driver::Driver(const ros::NodeHandle &pnh) : pnh_(pnh) {
   ROS_INFO("packet size: %zu", kPacketSize);

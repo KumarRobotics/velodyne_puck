@@ -25,8 +25,8 @@ static const uint16_t UPPER_BANK = 0xeeff;
 static const uint16_t LOWER_BANK = 0xddff;
 
 /** Special Defines for VLP16 support **/
-static constexpr double kSingleFiringUs = 2.304;  // [µs]
-static constexpr double kFiringCycleUs = 55.296;  // [µs]
+static constexpr double kSingleFiringNs = 2304;  // [ns]
+static constexpr double kFiringCycleNs = 55296;  // [ns]
 
 // The information from two firing sequences of 16 lasers is contained in each
 // data block. Each packet contains the data from 24 firing sequences in 12 data
@@ -67,7 +67,7 @@ inline constexpr float Raw2Distance(uint16_t raw) {
 /// p51 8.3.1
 inline constexpr float AzimuthResolutionDegree(int rpm) {
   // rpm % 60 == 0
-  return rpm / 60.0 * 360.0 * kFiringCycleUs / 1e6;
+  return rpm / 60.0 * 360.0 * kFiringCycleNs / 1e9;
 }
 
 }  // namespace velodyne_puck

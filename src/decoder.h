@@ -93,14 +93,14 @@ class Decoder {
 
   /// Decoded result
   struct FiringSequenceStamped {
-    double time;
+    int64_t time;
     float azimuth;  // rad [0, 2pi)
     FiringSequence sequence;
   };
 
   // TODO: use vector or array?
   using Decoded = std::array<FiringSequenceStamped, kFiringSequencesPerPacket>;
-  Decoded DecodePacket(const Packet* packet, double time) const;
+  Decoded DecodePacket(const Packet* packet, int64_t time) const;
 
   /// Convert firing sequences to image data
   sensor_msgs::ImagePtr ToImage(
