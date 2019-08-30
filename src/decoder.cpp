@@ -31,8 +31,8 @@ using namespace sensor_msgs;
 using namespace velodyne_msgs;
 
 /// Convert image and camera_info to point cloud
-CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
-                    const CameraInfoConstPtr& cinfo_msg, bool organized);
+CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
+                    bool organized);
 
 Decoder::Decoder(const ros::NodeHandle& pnh)
     : pnh_(pnh), it_(pnh), cfg_server_(pnh) {
@@ -230,7 +230,7 @@ void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
 
 void Decoder::PublishCloud(const ImageConstPtr& image_msg,
                            const CameraInfoConstPtr& cinfo_msg) {
-  const auto cloud = ToCloud(image_msg, cinfo_msg, config_.organized);
+  const auto cloud = ToCloud(image_msg, *cinfo_msg, config_.organized);
   ROS_DEBUG("number of points in cloud: %zu", cloud->size());
   cloud_pub_.publish(cloud);
 }
@@ -298,20 +298,19 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
       .toImageMsg();
 }
 
-CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
-                    const CameraInfoConstPtr& cinfo_msg, bool organized) {
-  CloudT::Ptr cloud(new CloudT);
+CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
+                    bool organized) {
+  CloudT::Ptr cloud_ptr(new CloudT);
+  CloudT& cloud = *cloud_ptr;
+
   const auto image = cv_bridge::toCvShare(image_msg)->image;
-  const auto& azimuths = cinfo_msg->D;
+  const auto& azimuths = cinfo_msg.D;
 
-  cloud->header = pcl_conversions::toPCL(image_msg->header);
-  cloud->reserve(image.total());
-
-  const float min_elevation = cinfo_msg->K[0];
-  const float max_elevation = cinfo_msg->K[1];
+  const float min_elevation = cinfo_msg.K[0];
+  const float max_elevation = cinfo_msg.K[1];
   const float delta_elevation =
       (max_elevation - min_elevation) / (image.rows - 1);
-  const float distance_resolution = cinfo_msg->R[0];
+  const float distance_resolution = cinfo_msg.R[0];
 
   // Precompute sin cos
   std::vector<std::pair<float, float>> sin_cos;
@@ -320,6 +319,9 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
     //    sincos(azimuths[i], &(sin_cos[i].first), &(sin_cos[i].second));
     sin_cos.emplace_back(std::sin(azimuths[i]), std::cos(azimuths[i]));
   }
+
+  cloud.header = pcl_conversions::toPCL(image_msg->header);
+  cloud.reserve(image.total());
 
   for (int r = 0; r < image.rows; ++r) {
     const auto* const row_ptr = image.ptr<cv::Vec2w>(r);
@@ -335,7 +337,7 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
       if (data[0] == 0) {
         if (organized) {
           p.x = p.y = p.z = kPclNaN;
-          cloud->points.push_back(p);
+          cloud.points.push_back(p);
         }
       } else {
         // p.53 Figure 9-1 VLP-16 Sensor Coordinate System
@@ -355,19 +357,20 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg,
         p.z = z;
         p.intensity = static_cast<float>(data[1]);
 
-        cloud->points.push_back(p);
+        cloud.points.push_back(p);
       }
     }
   }
 
   if (organized) {
-    cloud->width = image.cols;
-    cloud->height = image.rows;
+    cloud.width = image.cols;
+    cloud.height = image.rows;
   } else {
-    cloud->width = cloud->size();
-    cloud->height = 1;
+    cloud.width = cloud.size();
+    cloud.height = 1;
   }
-  return cloud;
+
+  return cloud_ptr;
 }
 
 }  // namespace velodyne_puck
