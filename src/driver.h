@@ -34,8 +34,6 @@ class Driver {
   using Ptr = boost::shared_ptr<Driver>;
 
   bool Poll();
-  bool PollPacket();
-  bool PollScan();
 
  private:
   bool OpenUdpPort();
