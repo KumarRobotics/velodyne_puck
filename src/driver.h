@@ -34,6 +34,8 @@ class Driver {
   using Ptr = boost::shared_ptr<Driver>;
 
   bool Poll();
+  bool PollPacket();
+  bool PollScan();
 
  private:
   bool OpenUdpPort();
@@ -46,12 +48,15 @@ class Driver {
 
   // ROS related variables
   ros::NodeHandle pnh_;
-  ros::Publisher packet_pub_;
+  ros::Publisher pub_packet_;
+  ros::Publisher pub_scan_;
 
   // Diagnostics updater
   diagnostic_updater::Updater updater_;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> topic_diag_;
+  std::vector<velodyne_msgs::VelodynePacket> buffer_;
   double freq_;
+  int batch_size_{0};
 };
 
 }  // namespace velodyne_puck
