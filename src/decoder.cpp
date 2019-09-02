@@ -38,13 +38,6 @@ Decoder::Decoder(const ros::NodeHandle& pnh)
     : pnh_(pnh), it_(pnh), cfg_server_(pnh) {
   pnh_.param<std::string>("frame_id", frame_id_, "velodyne");
   ROS_INFO("Velodyne frame_id: %s", frame_id_.c_str());
-
-  packet_sub_ =
-      pnh_.subscribe<VelodynePacket>("packet", 100, &Decoder::PacketCb, this);
-  cloud_pub_ = pnh_.advertise<PointCloud2>("cloud", 10);
-
-  intensity_pub_ = it_.advertise("intensity", 1);
-  camera_pub_ = it_.advertiseCamera("image", 5);
   cfg_server_.setCallback(boost::bind(&Decoder::ConfigCb, this, _1, _2));
 }
 
@@ -150,7 +143,8 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
     for (const auto& tfseq : decoded) {
       buffer_.push_back(tfseq);
       if (buffer_.size() >= static_cast<size_t>(config_.image_width)) {
-        ROS_DEBUG("Publish fixed width with buffer size: %zu", buffer_.size());
+        ROS_DEBUG("Publish fixed width with buffer size: %zu, required: %d",
+                  buffer_.size(), config_.image_width);
         PublishBufferAndClear();
       }
     }
@@ -191,6 +185,17 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
 
   config_ = config;
   buffer_.clear();
+
+  if (level == -1) {
+    ROS_INFO("Initialize ROS subscriber/publisher");
+    cloud_pub_ = pnh_.advertise<PointCloud2>("cloud", 10);
+    intensity_pub_ = it_.advertise("intensity", 1);
+    camera_pub_ = it_.advertiseCamera("image", 5);
+
+    packet_sub_ =
+        pnh_.subscribe<VelodynePacket>("packet", 100, &Decoder::PacketCb, this);
+    ROS_INFO("Ready to publish");
+  }
 }
 
 void Decoder::PublishBufferAndClear() {
@@ -268,15 +273,6 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
 
     // Fill in image
     for (int r = 0; r < image.rows; ++r) {
-      //      const auto rr = kFiringsPerFiringSequence - 1 - LaserId2Index(r);
-      //      image.at<cv::Vec3b>(rr, c) =
-      //          *(reinterpret_cast<const
-      //          cv::Vec3b*>(&(tfseq.sequence.points[r])));
-      //      const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
-      //      image.at<cv::Vec3b>(r, c) =
-      //          *(reinterpret_cast<const
-      //          cv::Vec3b*>(&(tfseq.sequence.points[rr])));
-
       // row 0 corresponds to max elevation (highest), row 15 corresponds to
       // min elevation (lowest) hence we flip row number
       // also data points are stored in laser ids which are interleaved, so we

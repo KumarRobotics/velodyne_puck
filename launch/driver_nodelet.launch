@@ -1,10 +1,12 @@
 <launch>
   <arg name="device_ip" default="192.168.1.201"/>
   <arg name="pkg" value="velodyne_puck"/>
+  <arg name="batch_size" value="5"/>
 
   <node pkg="nodelet" type="nodelet" name="$(arg pkg)_driver_nodelet" args="load $(arg pkg)/DriverNodelet
     $(arg pkg)_nodelet_manager">
     <param name="device_ip" type="string" value="$(arg device_ip)"/>
+    <param name="batch_size" type="int" value="$(arg batch_size)"/>
     <remap from="~packet" to="packet"/>
   </node>
 
