@@ -19,7 +19,8 @@ using CloudT = pcl::PointCloud<PointT>;
 class Decoder {
  public:
   /// Number of channels for image data
-  static constexpr int kChannels = 3;
+  /// TODO: do we really need high precision mode?
+  static constexpr int kChannels = 2;  // (range [m], intensity)
 
   explicit Decoder(const ros::NodeHandle& pn);
 
@@ -34,8 +35,8 @@ class Decoder {
   void ConfigCb(VelodynePuckConfig& config, int level);
 
  private:
-  /// ==========================================================================
   /// All of these uses laser index from velodyne which is interleaved
+
   /// 9.3.1.3 Data Point
   /// A data point is a measurement by one laser channel of a relection of a
   /// laser pulse

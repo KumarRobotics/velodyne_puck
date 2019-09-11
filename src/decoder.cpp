@@ -15,6 +15,7 @@ using namespace velodyne_msgs;
 
 using Veckf = cv::Vec<float, Decoder::kChannels>;
 
+/// Struct for precomputing sin and cos
 struct SinCos {
   SinCos() = default;
   SinCos(float rad) : sin(std::sin(rad)), cos(std::cos(rad)) {}
@@ -84,7 +85,7 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   // Fix azimuth for odd firing sequences
   for (int dbi = 0; dbi < kDataBlocksPerPacket; ++dbi) {
     // 1,3,5,...,23
-    // Index into decoded, hardcode 2 for now
+    // Index into decoded with odd id, hardcode 2 for now
     const auto di = dbi * 2 + 1;
     auto azimuth = decoded[di].azimuth;
 
@@ -158,6 +159,10 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
       prev_azimuth = tfseq.azimuth;
     }
   }
+}
+
+void Decoder::ScanCb(const VelodyneScanConstPtr& scan_msg) {
+  // Not implemented at the moment
 }
 
 void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
@@ -234,7 +239,7 @@ void Decoder::PublishCloud(const ImageConstPtr& image_msg,
 ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
                           CameraInfo& cinfo_msg) const {
   std_msgs::Header header;
-  header.stamp.fromNSec(fseqs[0].time);
+  header.stamp.fromNSec(fseqs.front().time);
   header.frame_id = frame_id_;
 
   cv::Mat image = cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(),
