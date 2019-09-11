@@ -13,6 +13,14 @@ namespace velodyne_puck {
 using namespace sensor_msgs;
 using namespace velodyne_msgs;
 
+using Veckf = cv::Vec<float, Decoder::kChannels>;
+
+struct SinCos {
+  SinCos() = default;
+  SinCos(float rad) : sin(std::sin(rad)), cos(std::cos(rad)) {}
+  float sin, cos;
+};
+
 /// Convert image and camera_info to point cloud
 CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
                     bool organized);
@@ -229,9 +237,9 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
   header.stamp.fromNSec(fseqs[0].time);
   header.frame_id = frame_id_;
 
-  cv::Mat image =
-      cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(), CV_16UC2);
-  ROS_DEBUG("image size: %d x %d", image.rows, image.cols);
+  cv::Mat image = cv::Mat::zeros(kFiringsPerFiringSequence, fseqs.size(),
+                                 CV_32FC(kChannels));
+  ROS_DEBUG("image: %d x %d x %d", image.rows, image.cols, image.channels());
 
   cinfo_msg.header = header;
   cinfo_msg.height = image.rows;
@@ -243,9 +251,6 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
   cinfo_msg.P[1] = kSingleFiringNs;  // ns
   cinfo_msg.distortion_model = "VLP16";
   cinfo_msg.D.reserve(image.cols);
-
-  const uint16_t min_range = config_.min_range / kDistanceResolution;
-  const uint16_t max_range = config_.max_range / kDistanceResolution;
 
   // Unfortunately the buffer element is organized in columns, probably not very
   // cache-friendly
@@ -263,17 +268,18 @@ ImagePtr Decoder::ToImage(const std::vector<FiringSequenceStamped>& fseqs,
       const auto rr = Index2LaserId(kFiringsPerFiringSequence - 1 - r);
 
       // We clip range in image instead of in cloud
-      auto range = tfseq.sequence.points[rr].distance;
-      if (range < min_range || range > max_range) {
-        range = 0;
+      float range = tfseq.sequence.points[rr].distance * kDistanceResolution;
+      if (range < config_.min_range || range > config_.max_range) {
+        range = kNaNFloat;
       }
 
-      image.at<cv::Vec2w>(r, c) =
-          cv::Vec2w(range, tfseq.sequence.points[rr].reflectivity);
+      auto& e = image.at<Veckf>(r, c);
+      e[0] = range;                                   // range
+      e[1] = tfseq.sequence.points[rr].reflectivity;  // intensity
     }
   }
 
-  return cv_bridge::CvImage(header, image_encodings::TYPE_16UC2, image)
+  return cv_bridge::CvImage(header, "32FC" + std::to_string(kChannels), image)
       .toImageMsg();
 }
 
@@ -289,33 +295,31 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
   const float max_elevation = cinfo_msg.K[1];
   const float delta_elevation =
       (max_elevation - min_elevation) / (image.rows - 1);
-  const float distance_resolution = cinfo_msg.R[0];
 
   // Precompute sin cos
-  std::vector<std::pair<float, float>> sin_cos;
-  sin_cos.reserve(azimuths.size());
-  for (size_t i = 0; i < azimuths.size(); ++i) {
-    //    sincos(azimuths[i], &(sin_cos[i].first), &(sin_cos[i].second));
-    sin_cos.emplace_back(std::sin(azimuths[i]), std::cos(azimuths[i]));
+  std::vector<SinCos> sincos;
+  sincos.reserve(azimuths.size());
+  for (const auto& a : azimuths) {
+    sincos.emplace_back(a);
   }
 
   cloud.header = pcl_conversions::toPCL(image_msg->header);
   cloud.reserve(image.total());
 
   for (int r = 0; r < image.rows; ++r) {
-    const auto* const row_ptr = image.ptr<cv::Vec2w>(r);
+    const auto* const row_ptr = image.ptr<Veckf>(r);
     // Because image row 0 is the highest laser point
     const float omega = max_elevation - r * delta_elevation;
     const auto cos_omega = std::cos(omega);
     const auto sin_omega = std::sin(omega);
 
     for (int c = 0; c < image.cols; ++c) {
-      const cv::Vec2w& data = row_ptr[c];
+      const Veckf& data = row_ptr[c];
 
       PointT p;
-      if (data[0] == 0) {
+      if (std::isnan(data[0])) {
         if (organized) {
-          p.x = p.y = p.z = kPclNaN;
+          p.x = p.y = p.z = kNaNFloat;
           cloud.points.push_back(p);
         }
       } else {
@@ -323,9 +327,9 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
         // x = d * cos(w) * sin(a);
         // y = d * cos(w) * cos(a);
         // z = d * sin(w)
-        const float R = data[0] * distance_resolution;
-        const auto x = R * cos_omega * sin_cos[c].first;
-        const auto y = R * cos_omega * sin_cos[c].second;
+        const float R = data[0];
+        const auto x = R * cos_omega * sincos[c].sin;
+        const auto y = R * cos_omega * sincos[c].cos;
         const auto z = R * sin_omega;
 
         // original velodyne frame is x right y forward
@@ -334,7 +338,7 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
         p.x = y;
         p.y = -x;
         p.z = z;
-        p.intensity = static_cast<float>(data[1]);
+        p.intensity = data[1];
 
         cloud.points.push_back(p);
       }

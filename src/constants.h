@@ -6,7 +6,7 @@
 
 namespace velodyne_puck {
 
-static constexpr auto kPclNaN = std::numeric_limits<float>::quiet_NaN();
+static constexpr auto kNaNFloat = std::numeric_limits<float>::quiet_NaN();
 static constexpr float kTau = M_PI * 2;
 static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }
 static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }

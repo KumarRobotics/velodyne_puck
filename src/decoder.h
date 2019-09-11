@@ -18,6 +18,9 @@ using CloudT = pcl::PointCloud<PointT>;
 
 class Decoder {
  public:
+  /// Number of channels for image data
+  static constexpr int kChannels = 3;
+
   explicit Decoder(const ros::NodeHandle& pn);
 
   Decoder(const Decoder&) = delete;

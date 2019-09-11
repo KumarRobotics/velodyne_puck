@@ -220,14 +220,14 @@ bool Driver::Poll() {
   // publish scan
   if (batch_size_ > 0) {
     buffer_.push_back(*packet);
-    if (buffer_.size() < batch_size_) continue;
-
-    VelodyneScan::Ptr scan(new VelodyneScan);
-    scan->header.frame_id = "VLP16";
-    scan->header.stamp = buffer_.front().stamp;
-    scan->packets = buffer_;
-    pub_scan_.publish(scan);
-    buffer_.clear();
+    if (buffer_.size() >= batch_size_) {
+      VelodyneScan::Ptr scan(new VelodyneScan);
+      scan->header.frame_id = "VLP16";
+      scan->header.stamp = buffer_.front().stamp;
+      scan->packets = buffer_;
+      pub_scan_.publish(scan);
+      buffer_.clear();
+    }
   }
 
   return true;
