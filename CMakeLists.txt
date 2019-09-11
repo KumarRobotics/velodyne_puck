@@ -16,10 +16,7 @@ find_package(catkin REQUIRED
 
 generate_dynamic_reconfigure_options(cfg/VelodynePuck.cfg)
 
-catkin_package(INCLUDE_DIRS
-               src
-               LIBRARIES
-               ${PROJECT_NAME})
+catkin_package()
 
 add_executable(${PROJECT_NAME}_driver src/driver.cpp)
 target_include_directories(${PROJECT_NAME}_driver
