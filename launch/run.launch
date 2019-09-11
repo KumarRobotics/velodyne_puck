@@ -20,14 +20,12 @@
   <env if="$(arg debug)" name="ROSCONSOLE_CONFIG_FILE" value="$(find velodyne_puck)/launch/debug.conf"/>
 
   <group ns="$(arg frame_id)">
-    <node pkg="nodelet" type="nodelet" name="$(arg pkg)_nodelet_manager" args="manager" output="screen"/>
-
-    <include file="$(find velodyne_puck)/launch/driver_nodelet.launch" if="$(arg driver)">
+    <include file="$(find velodyne_puck)/launch/driver.launch" if="$(arg driver)">
       <arg name="device_ip" value="$(arg device_ip)"/>
       <arg name="batch_size" value="$(arg batch_size)"/>
     </include>
 
-    <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch" if="$(arg decoder)">
+    <include file="$(find velodyne_puck)/launch/decoder.launch" if="$(arg decoder)">
       <arg name="frame_id" value="$(arg frame_id)"/>
       <arg name="cloud" value="$(arg cloud)"/>
 

@@ -5,8 +5,7 @@
   <!-- batch size > 0 is the new behavior where we publis scan -->
   <arg name="batch_size" default="0"/>
 
-  <node pkg="nodelet" type="nodelet" name="$(arg pkg)_driver_nodelet" args="load $(arg pkg)/DriverNodelet
-    $(arg pkg)_nodelet_manager">
+  <node pkg="velodyne_puck" type="$(arg pkg)_driver" name="$(arg pkg)_driver" output="screen">
     <param name="device_ip" type="string" value="$(arg device_ip)"/>
     <param name="batch_size" type="int" value="$(arg batch_size)"/>
 

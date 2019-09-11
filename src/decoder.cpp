@@ -353,3 +353,11 @@ CloudT::Ptr ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
 }
 
 }  // namespace velodyne_puck
+
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "velodyne_puck_decoder");
+  ros::NodeHandle pnh("~");
+
+  velodyne_puck::Decoder node(pnh);
+  ros::spin();
+}

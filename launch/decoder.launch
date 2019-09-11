@@ -12,8 +12,7 @@
   <arg name="precise" default="false"/>
 
 
-  <node pkg="nodelet" type="nodelet" name="$(arg pkg)_decoder_nodelet" args="load $(arg pkg)/DecoderNodelet
-    $(arg pkg)_nodelet_manager" output="screen">
+  <node pkg="$(arg pkg)" type="$(arg pkg)_decoder" name="$(arg pkg)_decoder" output="screen">
     <param name="frame_id" type="string" value="$(arg frame_id)"/>
     <param name="min_range" type="double" value="$(arg min_range)"/>
     <param name="max_range" type="double" value="$(arg max_range)"/>

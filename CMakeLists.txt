@@ -5,8 +5,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 find_package(catkin REQUIRED
              COMPONENTS roscpp
-                        nodelet
-                        pluginlib
                         pcl_ros
                         pcl_conversions
                         cv_bridge
@@ -18,15 +16,19 @@ find_package(catkin REQUIRED
 
 generate_dynamic_reconfigure_options(cfg/VelodynePuck.cfg)
 
-catkin_package(INCLUDE_DIRS src LIBRARIES ${PROJECT_NAME})
+catkin_package(INCLUDE_DIRS
+               src
+               LIBRARIES
+               ${PROJECT_NAME})
 
-# Velodyne Puck Decoder
-add_library(${PROJECT_NAME}
-            src/driver.cpp
-            src/driver_nodelet.cpp
-            src/decoder.cpp
-            src/decoder_nodelet.cpp)
+add_executable(${PROJECT_NAME}_driver src/driver.cpp)
+target_include_directories(${PROJECT_NAME}_driver
+                           PUBLIC ${catkin_INCLUDE_DIRS} src)
+target_link_libraries(${PROJECT_NAME}_driver PUBLIC ${catkin_LIBRARIES})
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} src)
-target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+add_executable(${PROJECT_NAME}_decoder src/decoder.cpp)
+target_include_directories(${PROJECT_NAME}_decoder
+                           PUBLIC ${catkin_INCLUDE_DIRS} src)
+target_link_libraries(${PROJECT_NAME}_decoder PUBLIC ${catkin_LIBRARIES})
+
+add_dependencies(${PROJECT_NAME}_driver ${PROJECT_NAME}_gencfg)

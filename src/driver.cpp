@@ -234,3 +234,18 @@ bool Driver::Poll() {
 }
 
 }  // namespace velodyne_puck
+
+int main(int argc, char **argv) {
+  ros::init(argc, argv, "velodyne_puck_driver");
+  ros::NodeHandle pnh("~");
+
+  velodyne_puck::Driver node(pnh);
+
+  while (ros::ok()) {
+    // poll device until end of file
+    if (!node.Poll()) {
+      ROS_WARN("Stop due to error in Poll()");
+      break;
+    }
+  }
+}
