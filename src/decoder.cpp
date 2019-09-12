@@ -214,6 +214,7 @@ void Decoder::PublishBufferAndClear() {
     PublishCloud(image_msg, cinfo_msg);
   }
 
+  ROS_DEBUG("Clearing buffer %zu", buffer_.size());
   buffer_.clear();
 
   const auto time = (ros::Time::now() - start).toSec();
