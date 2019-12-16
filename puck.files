@@ -34,7 +34,6 @@ src/decoder.cpp
 src/decoder.cpp
 src/decoder.h
 src/decoder.h
-src/decoder.h
 src/decoder_nodelet.cpp
 src/decoder_nodelet.cpp
 src/decoder_nodelet.h
@@ -42,7 +41,6 @@ src/decoder_nodelet.h
 src/driver.cpp
 src/driver.cpp
 src/driver.cpp
-src/driver.h
 src/driver.h
 src/driver.h
 src/driver_nodelet.cpp

@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <poll.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -8,8 +9,10 @@
 #include <cmath>
 
 #include "constants.h"
-#include "driver.h"
 
+#include <diagnostic_updater/diagnostic_updater.h>
+#include <diagnostic_updater/publisher.h>
+#include <velodyne_msgs/VelodynePacket.h>
 #include <velodyne_msgs/VelodyneScan.h>
 
 namespace velodyne_puck {
@@ -26,6 +29,35 @@ static constexpr int kError = -1;
 static constexpr double kDelayPerPacketNs =
     kFiringSequencesPerPacket * kFiringCycleNs;
 static constexpr double kPacketsPerSecond = 1e9 / kDelayPerPacketNs;
+
+class Driver {
+ public:
+  explicit Driver(const ros::NodeHandle &pnh);
+  ~Driver();
+
+  bool Poll();
+
+ private:
+  bool OpenUdpPort();
+  int ReadPacket(velodyne_msgs::VelodynePacket &packet) const;
+
+  // Ethernet relate variables
+  std::string device_ip_str_;
+  in_addr device_ip_;
+  int socket_id_{-1};
+
+  // ROS related variables
+  ros::NodeHandle pnh_;
+  ros::Publisher pub_packet_;
+  ros::Publisher pub_scan_;
+
+  // Diagnostics updater
+  diagnostic_updater::Updater updater_;
+  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> topic_diag_;
+  std::vector<velodyne_msgs::VelodynePacket> buffer_;
+  double freq_;
+  int batch_size_{0};
+};
 
 Driver::Driver(const ros::NodeHandle &pnh) : pnh_(pnh) {
   ROS_INFO("packet size: %zu", kPacketSize);
