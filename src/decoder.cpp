@@ -106,6 +106,9 @@ class Decoder {
   void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
                     const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
+ private:
+  void Reset();
+
   // ROS related parameters
   std::string frame_id_;
   ros::NodeHandle pnh_;
@@ -229,40 +232,44 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
 }
 
 void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
-  const auto* my_packet =
-      reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
+  const auto start = ros::Time::now();
+
+  const auto* packet = reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
 
   // TODO: maybe make this a vector? to handle invalid data block?
-  const auto decoded = DecodePacket(my_packet, packet_msg->stamp.toNSec());
+  const auto decoded = DecodePacket(packet, packet_msg->stamp.toNSec());
 
-  if (!config_.full_sweep) {
-    for (const auto& tfseq : decoded) {
-      buffer_.push_back(tfseq);
-      if (buffer_.size() >= static_cast<size_t>(config_.image_width)) {
-        ROS_DEBUG("Publish fixed width with buffer size: %zu, required: %d",
-                  buffer_.size(), config_.image_width);
-        PublishBufferAndClear();
-      }
-    }
-  } else {
-    // Full scan mode 0~360
-    // Check for a change of azimuth across 0
-    float prev_azimuth = buffer_.empty() ? -1 : buffer_.back().azimuth;
-
-    for (const auto& tfseq : decoded) {
-      if (tfseq.azimuth < prev_azimuth) {
-        // this indicates we cross the 0 azimuth angle
-        // we are ready to publish what's in the buffer
-        ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth", rad2deg(tfseq.azimuth),
-                  rad2deg(prev_azimuth));
-        ROS_DEBUG("Publish full scan with buffer size: %zu", buffer_.size());
-        PublishBufferAndClear();
-      }
-
-      buffer_.push_back(tfseq);
-      prev_azimuth = tfseq.azimuth;
+  //  if (!config_.full_sweep) {
+  for (const auto& tfseq : decoded) {
+    buffer_.push_back(tfseq);
+    if (buffer_.size() >= static_cast<size_t>(config_.image_width)) {
+      ROS_DEBUG("Publish fixed width with buffer size: %zu, required: %d",
+                buffer_.size(), config_.image_width);
+      PublishBufferAndClear();
     }
   }
+  //  } else {
+  //    // Full scan mode 0~360
+  //    // Check for a change of azimuth across 0
+  //    float prev_azimuth = buffer_.empty() ? -1 : buffer_.back().azimuth;
+
+  //    for (const auto& tfseq : decoded) {
+  //      if (tfseq.azimuth < prev_azimuth) {
+  //        // this indicates we cross the 0 azimuth angle
+  //        // we are ready to publish what's in the buffer
+  //        ROS_DEBUG("curr_azimuth: %f < %f prev_azimuth",
+  //        rad2deg(tfseq.azimuth),
+  //                  rad2deg(prev_azimuth));
+  //        ROS_DEBUG("Publish full scan with buffer size: %zu",
+  //        buffer_.size()); PublishBufferAndClear();
+  //      }
+
+  //      buffer_.push_back(tfseq);
+  //      prev_azimuth = tfseq.azimuth;
+  //    }
+  //  }
+
+  ROS_DEBUG("Time: %f", (ros::Time::now() - start).toSec());
 }
 
 void Decoder::ScanCb(const VelodyneScanConstPtr& scan_msg) {
@@ -270,11 +277,7 @@ void Decoder::ScanCb(const VelodyneScanConstPtr& scan_msg) {
 }
 
 void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
-  if (config.min_range > config.max_range) {
-    ROS_WARN("min_range: %f > max_range: %f", config.min_range,
-             config.max_range);
-    config.min_range = config.max_range;
-  }
+  config.min_range = std::min(config.min_range, config.max_range);
 
   ROS_INFO(
       "Reconfigure Request: min_range: %f, max_range: %f, image_width: %d, "
@@ -301,28 +304,24 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
 void Decoder::PublishBufferAndClear() {
   if (buffer_.empty()) return;
 
-  const auto start = ros::Time::now();
   // Always convert to image data
   const CameraInfoPtr cinfo_msg(new CameraInfo);
   const auto image_msg = ToImage(buffer_, *cinfo_msg);
 
-  if (camera_pub_.getNumSubscribers()) {
+  if (camera_pub_.getNumSubscribers() > 0) {
     camera_pub_.publish(image_msg, cinfo_msg);
   }
 
-  if (intensity_pub_.getNumSubscribers()) {
+  if (intensity_pub_.getNumSubscribers() > 0) {
     PublishIntensity(image_msg);
   }
 
-  if (cloud_pub_.getNumSubscribers()) {
+  if (cloud_pub_.getNumSubscribers() > 0) {
     PublishCloud(image_msg, cinfo_msg);
   }
 
   ROS_DEBUG("Clearing buffer %zu", buffer_.size());
   buffer_.clear();
-
-  const auto time = (ros::Time::now() - start).toSec();
-  ROS_DEBUG("Total time for publish: %f", time);
 }
 
 void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
