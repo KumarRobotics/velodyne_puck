@@ -93,6 +93,8 @@ class Decoder {
     FiringSequence sequence;
   };
 
+  void DecodeAndFill(const Packet* const packet_buf);
+
   // TODO: use vector or array?
   using Decoded = std::array<FiringSequenceStamped, kFiringSequencesPerPacket>;
   Decoded DecodePacket(const Packet* packet, int64_t time) const;
@@ -271,20 +273,31 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
       config.organized ? "True" : "False",
       config.full_sweep ? "True" : "False");
 
+  if (config.full_sweep) {
+    ROS_WARN("Not supported");
+  } else {
+    config.image_width /= kFiringSequencesPerPacket;
+    config.image_width *= kFiringSequencesPerPacket;
+  }
+
   config_ = config;
   buffer_.clear();
+  Reset();
 
-  if (level == -1) {
-    ROS_INFO("Initialize ROS subscriber/publisher");
+  if (level < 0) {
+    ROS_INFO("Initialize ROS subscriber/publisher...");
+    camera_pub_ = it_.advertiseCamera("image", 10);
     cloud_pub_ = pnh_.advertise<PointCloud2>("cloud", 10);
     intensity_pub_ = it_.advertise("intensity", 1);
-    camera_pub_ = it_.advertiseCamera("image", 5);
+    range_pub_ = it_.advertise("range", 1);
 
     packet_sub_ =
-        pnh_.subscribe<VelodynePacket>("packet", 100, &Decoder::PacketCb, this);
-    ROS_INFO("Ready to publish");
+        pnh_.subscribe<VelodynePacket>("packet", 256, &Decoder::PacketCb, this);
+    ROS_INFO("Decoder initialized");
   }
 }
+
+void Decoder::DecodeAndFill(const Decoder::Packet* const packet_buf) {}
 
 void Decoder::PublishBufferAndClear() {
   if (buffer_.empty()) return;
@@ -431,13 +444,10 @@ CloudT ToCloud(const ImageConstPtr& image_msg, const CameraInfo& cinfo_msg,
         // y = d * cos(w) * cos(a);
         // z = d * sin(w)
         const float R = data[RANGE];
-        const auto x = R * cos_omega * sincos[c].sin;
-        const auto y = R * cos_omega * sincos[c].cos;
+        const auto x = R * cos_omega * sincos[c].cos;
+        const auto y = R * cos_omega * sincos[c].sin;
         const auto z = R * sin_omega;
 
-        // original velodyne frame is x right y forward
-        // we make x forward and y left, thus 0 azimuth is at x = 0 and
-        // goes clockwise
         p.x = x;
         p.y = -y;
         p.z = z;
