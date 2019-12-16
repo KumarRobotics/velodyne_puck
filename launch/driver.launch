@@ -1,0 +1,16 @@
+<launch>
+  <arg name="pkg" value="velodyne_puck"/>
+  <arg name="device_ip" default="192.168.1.201"/>
+  <!-- batch size 0 is the old behavior where we publish packet  -->
+  <!-- batch size > 0 is the new behavior where we publis scan -->
+  <arg name="batch_size" default="0"/>
+
+  <node pkg="velodyne_puck" type="$(arg pkg)_driver" name="$(arg pkg)_driver" output="screen">
+    <param name="device_ip" type="string" value="$(arg device_ip)"/>
+    <param name="batch_size" type="int" value="$(arg batch_size)"/>
+
+    <remap from="~packet" to="packet"/>
+    <remap from="~scan" to="scan"/>
+  </node>
+
+</launch>

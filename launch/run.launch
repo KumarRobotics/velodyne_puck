@@ -4,15 +4,15 @@
   <!-- driver -->
   <arg name="driver" default="true"/>
   <arg name="device_ip" default="192.168.2.201"/>
+  <arg name="batch_size" default="0"/>
 
   <!-- decoder -->
   <arg name="decoder" default="true"/>
-  <arg name="packet" default="packet"/>
   <arg name="cloud" default="cloud"/>
 
   <arg name="frame_id" default="velodyne"/>
   <arg name="organized" default="true"/>
-  <arg name="max_range" default="100.0"/>
+  <arg name="max_range" default="80.0"/>
   <arg name="image_width" default="1024"/>
   <arg name="full_sweep" default="true"/>
 
@@ -20,16 +20,14 @@
   <env if="$(arg debug)" name="ROSCONSOLE_CONFIG_FILE" value="$(find velodyne_puck)/launch/debug.conf"/>
 
   <group ns="$(arg frame_id)">
-    <node pkg="nodelet" type="nodelet" name="$(arg pkg)_nodelet_manager" args="manager" output="screen"/>
-
-    <include file="$(find velodyne_puck)/launch/driver_nodelet.launch" if="$(arg driver)">
+    <include file="$(find velodyne_puck)/launch/driver.launch" if="$(arg driver)">
       <arg name="device_ip" value="$(arg device_ip)"/>
+      <arg name="batch_size" value="$(arg batch_size)"/>
     </include>
 
-    <include file="$(find velodyne_puck)/launch/decoder_nodelet.launch" if="$(arg decoder)">
+    <include file="$(find velodyne_puck)/launch/decoder.launch" if="$(arg decoder)">
       <arg name="frame_id" value="$(arg frame_id)"/>
       <arg name="cloud" value="$(arg cloud)"/>
-      <arg name="packet" value="$(arg packet)"/>
 
       <arg name="organized" value="$(arg organized)"/>
       <arg name="full_sweep" value="$(arg full_sweep)"/>

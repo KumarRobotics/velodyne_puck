@@ -3,3 +3,7 @@
 /usr/include/pcl-1.8
 ~/Workspace/ws/loam_ws/devel/include
 src
+cfg
+logs/catkin_tools_prebuild
+.
+launch
