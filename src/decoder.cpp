@@ -106,11 +106,11 @@ class Decoder {
 
   /// Publish
   void PublishBufferAndClear();
-  void PublishIntensity(const sensor_msgs::ImageConstPtr& image_msg);
   void PublishCloud(const sensor_msgs::ImageConstPtr& image_msg,
                     const sensor_msgs::CameraInfoConstPtr& cinfo_msg);
 
  private:
+  bool CheckFactoryBytes(const Packet* const packet);
   void Reset();
 
   // ROS related parameters
@@ -155,28 +155,12 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
                                        int64_t time) const {
   // transform
   //               ^ x_l
+  //               | -> /
   //               | a /
   //               |  /
   //               | /
-  //               |/
   // <-------------o
   // y_l
-
-  // Check return mode and product id, for now just die
-  const auto return_mode = packet->factory[0];
-  if (!(return_mode == 55 || return_mode == 56)) {
-    ROS_ERROR(
-        "return mode must be Strongest (55) or Last Return (56), "
-        "instead got (%u)",
-        return_mode);
-    ros::shutdown();
-  }
-  const auto product_id = packet->factory[1];
-  if (product_id != 34) {
-    ROS_ERROR("product id must be VLP-16 or Puck Lite (34), instead got (%u)",
-              product_id);
-    ros::shutdown();
-  }
 
   // std::array<TimedFiringSequence, kFiringSequencesPerPacket>;
   Decoded decoded;
@@ -243,6 +227,66 @@ Decoder::Decoded Decoder::DecodePacket(const Packet* packet,
   return decoded;
 }
 
+bool Decoder::CheckFactoryBytes(const Packet* const packet_buf) {
+  // Check return mode and product id, for now just die
+  const auto return_mode = packet_buf->factory[0];
+  if (!(return_mode == 55 || return_mode == 56)) {
+    ROS_ERROR(
+        "return mode must be Strongest (55) or Last Return (56), "
+        "instead got (%u)",
+        return_mode);
+    return false;
+  }
+  const auto product_id = packet_buf->factory[1];
+  if (product_id != 34) {
+    ROS_ERROR("product id must be VLP-16 or Puck Lite (34), instead got (%u)",
+              product_id);
+    return false;
+  }
+  return true;
+}
+
+void Decoder::DecodeAndFill(const Packet* const packet_buf) {
+  if (!CheckFactoryBytes(packet_buf)) {
+    ros::shutdown();
+  }
+
+  // transform
+  //              ^ x_l
+  //              | -> /
+  //              | a /
+  //              |  /
+  //              | /
+  // <------------o
+  // y_l
+
+  // For each data block, 12 total
+  for (int dbi = 0; dbi < kDataBlocksPerPacket; ++dbi) {
+    const auto& block = packet_buf->blocks[dbi];
+    auto raw_azimuth = block.azimuth;         // nominal azimuth [0,35999]
+    auto azimuth = Raw2Azimuth(raw_azimuth);  // nominal azimuth [0, 2pi)
+
+    ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
+                         "Invalid raw azimuth: " << raw_azimuth);
+    ROS_WARN_COND(block.flag != UPPER_BANK, "Invalid block %d", dbi);
+
+    // First, adjust for an azimuth rollover from 359.99 to 0
+
+    // for each firing sequence in the data block, 2
+    for (int fsi = 0; fsi < kFiringSequencesPerDataBlock; ++fsi, ++curr_col_) {
+      const auto col = dbi * 2 + fsi;
+      // 9.5 Precision Azimuth Calculation
+      // First, adjust for an Azimuth rollover from 359.99 to 0
+      // for each laser beam, 16
+      for (int lid = 0; lid < kFiringsPerFiringSequence; ++lid) {
+      }
+
+      timestamps_[curr_col_] = col * kFiringCycleNs;
+      azimuths_[curr_col_] = Raw2Azimuth(block.azimuth);
+    }
+  }
+}
+
 void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   const auto start = ros::Time::now();
 
@@ -274,7 +318,7 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
       config.full_sweep ? "True" : "False");
 
   if (config.full_sweep) {
-    ROS_WARN("Not supported");
+    ROS_WARN("Not supported for now.");
   } else {
     config.image_width /= kFiringSequencesPerPacket;
     config.image_width *= kFiringSequencesPerPacket;
@@ -297,8 +341,6 @@ void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
   }
 }
 
-void Decoder::DecodeAndFill(const Decoder::Packet* const packet_buf) {}
-
 void Decoder::PublishBufferAndClear() {
   if (buffer_.empty()) return;
 
@@ -310,25 +352,12 @@ void Decoder::PublishBufferAndClear() {
     camera_pub_.publish(image_msg, cinfo_msg);
   }
 
-  if (intensity_pub_.getNumSubscribers() > 0) {
-    PublishIntensity(image_msg);
-  }
-
   if (cloud_pub_.getNumSubscribers() > 0) {
     PublishCloud(image_msg, cinfo_msg);
   }
 
   ROS_DEBUG("Clearing buffer %zu", buffer_.size());
   buffer_.clear();
-}
-
-void Decoder::PublishIntensity(const ImageConstPtr& image_msg) {
-  const auto image = cv_bridge::toCvShare(image_msg)->image;
-  cv::Mat intensity;
-  cv::extractChannel(image, intensity, 1);
-  intensity.convertTo(intensity, CV_8UC1);
-  intensity_pub_.publish(
-      cv_bridge::CvImage(image_msg->header, "mono8", intensity).toImageMsg());
 }
 
 void Decoder::PublishCloud(const ImageConstPtr& image_msg,
