@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <poll.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -8,8 +9,10 @@
 #include <cmath>
 
 #include "constants.h"
-#include "driver.h"
 
+#include <diagnostic_updater/diagnostic_updater.h>
+#include <diagnostic_updater/publisher.h>
+#include <velodyne_msgs/VelodynePacket.h>
 #include <velodyne_msgs/VelodyneScan.h>
 
 namespace velodyne_puck {
@@ -24,8 +27,35 @@ static constexpr int kError = -1;
 
 // p49 8.2.1
 static constexpr double kDelayPerPacketNs =
-    kFiringSequencesPerPacket * kFiringCycleNs;
+    kSequencesPerPacket * kFiringCycleNs;
 static constexpr double kPacketsPerSecond = 1e9 / kDelayPerPacketNs;
+
+class Driver {
+ public:
+  explicit Driver(const ros::NodeHandle &pnh);
+  ~Driver();
+
+  bool Poll();
+
+ private:
+  bool OpenUdpPort();
+  int ReadPacket(VelodynePacket &packet) const;
+
+  // Ethernet relate variables
+  std::string device_ip_str_;
+  in_addr device_ip_;
+  int socket_id_{-1};
+
+  // ROS related variables
+  ros::NodeHandle pnh_;
+  ros::Publisher pub_packet_;
+
+  // Diagnostics updater
+  diagnostic_updater::Updater updater_;
+  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> topic_diag_;
+  std::vector<VelodynePacket> buffer_;
+  double freq_;
+};
 
 Driver::Driver(const ros::NodeHandle &pnh) : pnh_(pnh) {
   ROS_INFO("packet size: %zu", kPacketSize);
@@ -58,10 +88,7 @@ Driver::Driver(const ros::NodeHandle &pnh) : pnh_(pnh) {
       TimeStampStatusParam(-0.1, 0.1)));
 
   // Output
-  batch_size_ = pnh_.param("batch_size", 0);
-  ROS_INFO("batch_size: %d", batch_size_);
   pub_packet_ = pnh_.advertise<VelodynePacket>("packet", 10);
-  pub_scan_ = pnh_.advertise<VelodyneScan>("scan", 5);
 
   if (!OpenUdpPort()) {
     ROS_ERROR("Failed to open UDP Port");
@@ -216,19 +243,6 @@ bool Driver::Poll() {
   // its status
   topic_diag_->tick(packet->stamp);
   updater_.update();
-
-  // publish scan
-  if (batch_size_ > 0) {
-    buffer_.push_back(*packet);
-    if (buffer_.size() >= batch_size_) {
-      VelodyneScan::Ptr scan(new VelodyneScan);
-      scan->header.frame_id = "VLP16";
-      scan->header.stamp = buffer_.front().stamp;
-      scan->packets = buffer_;
-      pub_scan_.publish(scan);
-      buffer_.clear();
-    }
-  }
 
   return true;
 }

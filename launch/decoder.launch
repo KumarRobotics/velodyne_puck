@@ -1,16 +1,12 @@
 <launch>
   <arg name="pkg" value="velodyne_puck"/>
 
-  <arg name="cloud" default="cloud"/>
-
   <arg name="frame_id" default="velodyne"/>
   <arg name="full_sweep" default="True"/>
   <arg name="image_width" default="1024"/>
   <arg name="organized" default="true"/>
   <arg name="min_range" default="1.0"/>
   <arg name="max_range" default="100.0"/>
-  <arg name="precise" default="false"/>
-
 
   <node pkg="$(arg pkg)" type="$(arg pkg)_decoder" name="$(arg pkg)_decoder" output="screen">
     <param name="frame_id" type="string" value="$(arg frame_id)"/>
@@ -19,15 +15,14 @@
     <param name="image_width" type="int" value="$(arg image_width)"/>
     <param name="full_sweep" type="bool" value="$(arg full_sweep)"/>
     <param name="organized" type="bool" value="$(arg organized)"/>
-    <param name="precise" type="bool" value="$(arg precise)"/>
 
     <remap from="~packet" to="packet"/>
-    <remap from="~scan" to="scan"/>
 
-    <remap from="~cloud" to="$(arg cloud)"/>
+    <remap from="~cloud" to="cloud"/>
     <remap from="~image" to="image"/>
     <remap from="~camera_info" to="camera_info"/>
     <remap from="~intensity" to="intensity"/>
+    <remap from="~range" to="range"/>
   </node>
 
 </launch>

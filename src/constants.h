@@ -6,7 +6,8 @@
 
 namespace velodyne_puck {
 
-static constexpr auto kNaNFloat = std::numeric_limits<float>::quiet_NaN();
+static constexpr auto kNaNF = std::numeric_limits<float>::quiet_NaN();
+static constexpr auto kNaND = std::numeric_limits<double>::quiet_NaN();
 static constexpr float kTau = M_PI * 2;
 static constexpr float deg2rad(float deg) { return deg * M_PI / 180.0; }
 static constexpr float rad2deg(float rad) { return rad * 180.0 / M_PI; }
@@ -27,23 +28,20 @@ static const uint16_t LOWER_BANK = 0xddff;
 /** Special Defines for VLP16 support **/
 static constexpr double kSingleFiringNs = 2304;  // [ns]
 static constexpr double kFiringCycleNs = 55296;  // [ns]
+static constexpr double kSingleFiringRatio = kSingleFiringNs / kFiringCycleNs;
 
 // The information from two firing sequences of 16 lasers is contained in each
 // data block. Each packet contains the data from 24 firing sequences in 12 data
 // blocks.
-static constexpr int kFiringsPerFiringSequence = 16;
-static constexpr int kFiringSequencesPerDataBlock = 2;
-static constexpr int kDataBlocksPerPacket = 12;
-static constexpr int kFiringSequencesPerPacket =
-    kFiringSequencesPerDataBlock * kDataBlocksPerPacket;  // 24
+static constexpr int kFiringsPerSequence = 16;
+static constexpr int kSequencesPerBlock = 2;
+static constexpr int kBlocksPerPacket = 12;
+static constexpr int kSequencesPerPacket =
+    kSequencesPerBlock * kBlocksPerPacket;  // 25
 
-inline int LaserId2Index(int id) {
-  return (id % 2 == 0) ? id / 2 : id / 2 + kFiringsPerFiringSequence / 2;
-}
-
-inline int Index2LaserId(int index) {
-  const auto half = kFiringsPerFiringSequence / 2;
-  return (index < half) ? index * 2 : (index - half) * 2 + 1;
+inline int LaserId2Row(int id) {
+  const auto index = (id % 2 == 0) ? id / 2 : id / 2 + kFiringsPerSequence / 2;
+  return kFiringsPerSequence - index - 1;
 }
 
 static constexpr uint16_t kMaxRawAzimuth = 35999;
@@ -52,7 +50,7 @@ static constexpr float kAzimuthResolution = 0.01f;
 static constexpr float kMinElevation = deg2rad(-15.0f);
 static constexpr float kMaxElevation = deg2rad(15.0f);
 static constexpr float kDeltaElevation =
-    (kMaxElevation - kMinElevation) / (kFiringsPerFiringSequence - 1);
+    (kMaxElevation - kMinElevation) / (kFiringsPerSequence - 1);
 
 inline constexpr float Raw2Azimuth(uint16_t raw) {
   // According to the user manual,

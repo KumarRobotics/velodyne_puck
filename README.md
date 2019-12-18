@@ -2,8 +2,6 @@
 
 [![Build Status](https://travis-ci.org/KumarRobotics/velodyne_puck.svg?branch=master)](https://travis-ci.org/KumarRobotics/velodyne_puck)
 
-![Picture of Velodyne Puck](http://velodynelidar.com/images/products/vlp-16/puck.png)
-
 The `velodyne_puck` package is a linux ROS driver for velodyne puck only of [VELODYNE LIDAR](http://velodynelidar.com/).
 
 The user manual for the device can be found [here](http://velodynelidar.com/vlp-16.html) or the Lite version [here](http://velodynelidar.com/vlp-16-lite.html).
@@ -48,7 +46,7 @@ Otherwise, they will be removed.
 
 Width of the published image.
 
-`full_sweep` (`bool`, `true`)
+`full_sweep` (`bool`, `false`)
 
 Whether to publish a full sweep or not.
 
@@ -64,9 +62,8 @@ Will be used as namespace for all nodes and messages.
 
 `image` (`sensor_msgs/Image`)
 
-The range image is encoded as a CV_16UC2 image, the first channel encodes range measurement (divide by `distance_resolution` to get distance in meters), the second channel encodes reflectivity(intensity).
-
-row 0 ~ 15 in the image correspond to lasers from top to bottom, as opposed to bottom to top for visualization purposes.
+The range image is encoded as a CV_F32C3 image, with channels (Range, Intensity, Azimuth)
+row 0 ~ 15 in the image correspond to lasers from top (15deg) to bottom (-15deg).
 
 pixels in each row just contain those 3 bytes.
 
@@ -78,14 +75,14 @@ Stores relevant information to restore points from range image.
 
 For visualizing intensity image only.
 
+`range` (`sensor_msgs/Image`)
+
+For visualizing range image only.
+
 
 ```
-K[0] = MinElevation; // -15 deg
-K[1] = MaxElevation; // 15 deg
-R[0] = DistanceResolution; // 0.002
 P[0] = FiringCycleNs; // 55296 ns
-P[0] = SingleFiringNS; // 2304 ns
-D = vector<azimuth> // D.size() == image.cols
+D = [elevations, azimuths] // D.size() == image.height + image.width
 ```
 
 `cloud` (`sensor_msgs/PointCloud2`)
