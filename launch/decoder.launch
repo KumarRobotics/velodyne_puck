@@ -17,7 +17,6 @@
     <param name="organized" type="bool" value="$(arg organized)"/>
 
     <remap from="~packet" to="packet"/>
-    <remap from="~scan" to="scan"/>
 
     <remap from="~cloud" to="cloud"/>
     <remap from="~image" to="image"/>

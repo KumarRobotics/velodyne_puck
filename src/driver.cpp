@@ -27,7 +27,7 @@ static constexpr int kError = -1;
 
 // p49 8.2.1
 static constexpr double kDelayPerPacketNs =
-    kFiringSequencesPerPacket * kFiringCycleNs;
+    kSequencesPerPacket * kFiringCycleNs;
 static constexpr double kPacketsPerSecond = 1e9 / kDelayPerPacketNs;
 
 class Driver {
