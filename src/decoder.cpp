@@ -89,7 +89,7 @@ class Decoder {
   static_assert(sizeof(Packet) == sizeof(velodyne_msgs::VelodynePacket().data),
                 "sizeof(Packet) != 1206");
 
-  void DecodeAndFill(const Packet* const packet_buf);
+  void DecodeAndFill(const Packet* const packet_buf, uint64_t time);
 
  private:
   bool CheckFactoryBytes(const Packet* const packet);
@@ -148,7 +148,7 @@ bool Decoder::CheckFactoryBytes(const Packet* const packet_buf) {
   return true;
 }
 
-void Decoder::DecodeAndFill(const Packet* const packet_buf) {
+void Decoder::DecodeAndFill(const Packet* const packet_buf, uint64_t time) {
   if (!CheckFactoryBytes(packet_buf)) {
     ros::shutdown();
   }
@@ -165,8 +165,8 @@ void Decoder::DecodeAndFill(const Packet* const packet_buf) {
   // For each data block, 12 total
   for (int iblk = 0; iblk < kBlocksPerPacket; ++iblk) {
     const auto& block = packet_buf->blocks[iblk];
-    auto raw_azimuth = block.azimuth;         // nominal azimuth [0,35999]
-    auto azimuth = Raw2Azimuth(raw_azimuth);  // nominal azimuth [0, 2pi)
+    const auto raw_azimuth = block.azimuth;         // nominal azimuth [0,35999]
+    const auto azimuth = Raw2Azimuth(raw_azimuth);  // nominal azimuth [0, 2pi)
 
     ROS_WARN_STREAM_COND(raw_azimuth > kMaxRawAzimuth,
                          "Invalid raw azimuth: " << raw_azimuth);
@@ -192,8 +192,10 @@ void Decoder::DecodeAndFill(const Packet* const packet_buf) {
     // for each firing sequence in the data block, 2
     for (int iseq = 0; iseq < kSequencesPerBlock; ++iseq, ++curr_col_) {
       const auto col = iblk * 2 + iseq;
-      const auto& seq = block.sequences[iseq];
+      timestamps_[curr_col_] = time + col * kFiringCycleNs;
+      azimuths_[curr_col_] = azimuth + half_azimuth_gap * iseq;
 
+      const auto& seq = block.sequences[iseq];
       // for each laser beam, 16
       for (int lid = 0; lid < kFiringsPerSequence; ++lid) {
         const auto& point = seq.points[lid];
@@ -204,9 +206,6 @@ void Decoder::DecodeAndFill(const Packet* const packet_buf) {
                             iseq * half_azimuth_gap;
         v[AZIMUTH] = azimuth + offset;
       }
-
-      timestamps_[curr_col_] = col * kFiringCycleNs;
-      azimuths_[curr_col_] = Raw2Azimuth(block.azimuth);
     }
   }
 }
@@ -216,7 +215,7 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
   const auto* packet_buf =
       reinterpret_cast<const Packet*>(&(packet_msg->data[0]));
-  DecodeAndFill(packet_buf);
+  DecodeAndFill(packet_buf, packet_msg->stamp.toNSec());
 
   if (curr_col_ < config_.image_width) {
     return;
@@ -224,7 +223,7 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 
   std_msgs::Header header;
   header.frame_id = frame_id_;
-  header.stamp.fromNSec(packet_msg->stamp.toNSec());
+  header.stamp.fromNSec(timestamps_.front());
 
   const ImagePtr image_msg =
       cv_bridge::CvImage(header, "32FC3", image_).toImageMsg();
