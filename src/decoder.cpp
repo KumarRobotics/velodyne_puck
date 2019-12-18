@@ -235,7 +235,7 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
   cinfo_msg->height = image_msg->height;
   cinfo_msg->width = image_msg->width;
   cinfo_msg->distortion_model = "VLP16";
-  cinfo_msg->K[0] = kFiringCycleNs;  // delta time between two measurements
+  cinfo_msg->P[0] = kFiringCycleNs;  // delta time between two measurements
 
   // D = [altitude, azimuth]
   cinfo_msg->D = elevations_;
@@ -280,18 +280,21 @@ void Decoder::PacketCb(const VelodynePacketConstPtr& packet_msg) {
 void Decoder::ConfigCb(VelodynePuckConfig& config, int level) {
   config.min_range = std::min(config.min_range, config.max_range);
 
+  if (config.full_sweep) {
+    config.full_sweep = false;
+    ROS_WARN("Full sweep mode not supported. Use the following image width");
+    ROS_WARN("5 rpm - 3600, 10 rpm - 1800, 20 rpm - 900");
+  }
+
+  config.image_width /= kSequencesPerPacket;
+  config.image_width *= kSequencesPerPacket;
+
   ROS_INFO(
       "Reconfigure Request: min_range: %f, max_range: %f, image_width: %d, "
       "organized: %s, full_sweep: %s",
       config.min_range, config.max_range, config.image_width,
       config.organized ? "True" : "False",
       config.full_sweep ? "True" : "False");
-
-  if (config.full_sweep) {
-    ROS_WARN("Not supported for now.");
-  }
-  config.image_width /= kSequencesPerPacket;
-  config.image_width *= kSequencesPerPacket;
 
   config_ = config;
   Reset();
